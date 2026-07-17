@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avenida Lunar Watch</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{--ground:#eaf0f1;--panel:#fff;--ink:#0d2231;--soft:#5a6b74;--hair:#d3dbde;
+--safe:#0e9a8c;--caution:#cf8a1c;--danger:#d9452f;--water:#2f7cc9;
+--event:rgba(217,69,47,.10);--event-line:rgba(217,69,47,.55);
+--shadow:0 1px 2px rgba(13,34,49,.06),0 8px 24px rgba(13,34,49,.06);}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:Inter,system-ui,-apple-system,sans-serif;padding:22px 18px 44px}
+.wrap{max-width:900px;margin:0 auto}
+.mono{font-variant-numeric:tabular-nums}
+.eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--soft);font-family:ui-monospace,monospace}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;padding-bottom:14px;border-bottom:2px solid var(--ink);margin-bottom:20px}
+h1{font-size:29px;letter-spacing:-.01em;margin:6px 0 0;line-height:1}
+.asof{text-align:right;flex-shrink:0}
+.hero{background:var(--panel);border-radius:14px;box-shadow:var(--shadow);padding:22px 24px;margin-bottom:16px;border-left:6px solid var(--danger)}
+.hero.open{border-left-color:var(--safe)}.hero.caution{border-left-color:var(--caution)}
+.verdict{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.verdict .word{font-size:40px;font-weight:800;letter-spacing:-.02em;line-height:1;color:var(--danger)}
+.hero.open .word{color:var(--safe)}.hero.caution .word{color:var(--caution)}
+.verdict .mult{font-size:14px;color:var(--soft);padding:3px 9px;border:1px solid var(--hair);border-radius:20px;font-family:ui-monospace,monospace}
+.reason{margin:12px 0 0;font-size:15px;max-width:64ch}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.tile{background:var(--panel);border-radius:12px;box-shadow:var(--shadow);padding:14px 15px}
+.tile .lab{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);font-family:ui-monospace,monospace}
+.tile .val{font-size:23px;font-weight:700;margin-top:5px;line-height:1}
+.tile .sub{font-size:11.5px;color:var(--soft);margin-top:4px}
+.val.bad{color:var(--danger)}.val.ok{color:var(--safe)}.val.warn{color:var(--caution)}
+.panel{background:var(--panel);border-radius:14px;box-shadow:var(--shadow);padding:20px 22px;margin-bottom:16px}
+.panel h2{font-size:14px;font-weight:700;letter-spacing:.02em;margin:0 0 8px;text-transform:uppercase}
+.chartbox{position:relative;height:340px}
+.legend{display:flex;flex-wrap:wrap;gap:16px;margin-top:12px;font-size:12px;color:var(--soft)}
+.legend span{display:flex;align-items:center;gap:6px}.sw{width:16px;height:3px;border-radius:2px}
+.call{font-size:15.5px;max-width:66ch}
+.proj{display:flex;gap:22px;margin:14px 0 4px;flex-wrap:wrap}
+.proj .lab{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);font-family:ui-monospace,monospace}
+.proj .num{font-size:20px;font-weight:700;margin-top:3px}
+.caveat{font-size:12.5px;color:var(--soft);margin-top:12px;padding-top:12px;border-top:1px solid var(--hair);max-width:72ch}
+.fresh{font-size:11px;color:var(--soft);margin-top:2px}
+.stale{color:var(--danger)}
+footer{font-size:11.5px;color:var(--soft);margin-top:22px;line-height:1.55}
+@media(max-width:640px){.tiles{grid-template-columns:repeat(2,1fr)}h1{font-size:23px}.verdict .word{font-size:32px}header{flex-direction:column;align-items:flex-start}.asof{text-align:left}}
+</style></head><body><div class="wrap">
+<header><div><div class="eyebrow">Station IB-079 · Coronado · ddPCR daily</div>
+<h1>Avenida Lunar Watch</h1></div>
+<div class="asof"><div class="eyebrow">Updated</div><div class="mono" id="gen">loading…</div>
+<div class="fresh" id="fresh"></div><div class="eyebrow" id="cnt"></div></div></header>
+<div class="hero" id="hero"><div class="verdict"><span class="word" id="vw">—</span>
+<span class="mult" id="vm"></span></div><div class="reason" id="vr">Loading latest readings…</div></div>
+<div class="tiles">
+<div class="tile"><div class="lab">Latest reading</div><div class="val" id="tL">—</div><div class="sub" id="tLd"></div></div>
+<div class="tile"><div class="lab">5-sample geomean</div><div class="val" id="tG">—</div><div class="sub">rolling avg</div></div>
+<div class="tile"><div class="lab">7-day trend</div><div class="val" id="tT">—</div><div class="sub" id="tTd"></div></div>
+<div class="tile"><div class="lab">Days below line</div><div class="val" id="tS">—</div><div class="sub">consecutive</div></div></div>
+<div class="panel"><h2>Daily readings &amp; 7-day projection</h2>
+<div class="chartbox"><canvas id="chart"></canvas></div>
+<div class="legend"><span><span class="sw" style="background:var(--water)"></span>Reading</span>
+<span><span class="sw" style="background:var(--danger)"></span>Swim line (1,413)</span>
+<span><span class="sw" id="psw" style="background:var(--caution)"></span>Projection</span>
+<span><span class="sw" style="background:var(--event);border:1px solid var(--event-line)"></span>Contamination event</span></div></div>
+<div class="panel"><h2>Is there a swim window this week?</h2>
+<div class="call" id="call"></div>
+<div class="proj"><div><div class="lab">Projected +3d</div><div class="num" id="p3"></div></div>
+<div><div class="lab">Projected +7d</div><div class="num" id="p7"></div></div>
+<div><div class="lab">Crosses line</div><div class="num" id="pc"></div></div></div>
+<div class="caveat">Projection is a log-linear fit on recent readings — direction only. This station's spikes come from transboundary sewage flows that arrive with little warning, so a clean forecast can be overturned by one surge. An advisory lifts only when both the latest sample and the 5-sample geomean fall below the line.</div></div>
+<footer>Source: San Diego County DEHQ SamplesReport (SiteId=121), auto-fetched every few hours. Standard: 1,413 copies/100ml ddPCR. Live: sdbeachinfo.com · This page refreshes itself; pull it up on any device.</footer>
+</div>
+<script>
+const THRESHOLD=1413, EVENT_CUT=20000;
+let chartInstance=null;
+function fmt(n){return Math.round(n).toLocaleString('en-US');}
+function geomean(a){return Math.exp(a.reduce((s,x)=>s+Math.log(x),0)/a.length);}
+function short(iso){const p=iso.split('-');return (+p[1])+'/'+(+p[2]);}
+function addDays(iso,k){const d=new Date(iso+'T12:00:00');d.setDate(d.getDate()+k);return d.toISOString().slice(0,10);}
+function fit(v,n){const p=v.slice(-n),k=p.length,xs=p.map((_,i)=>i),ys=p.map(x=>Math.log(x));
+const mx=xs.reduce((a,b)=>a+b,0)/k,my=ys.reduce((a,b)=>a+b,0)/k;let nu=0,de=0;
+for(let i=0;i<k;i++){nu+=(xs[i]-mx)*(ys[i]-my);de+=(xs[i]-mx)**2;}
+const b=de?nu/de:0;return {b,fitLast:my+b*(xs[k-1]-mx)};}
+function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();}
+
+function stamp(iso){
+  if(!iso)return;
+  const d=new Date(iso);
+  document.getElementById('gen').textContent=d.toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  const hrs=(Date.now()-d.getTime())/3.6e6;
+  const rel = hrs<1 ? 'just now' : hrs<48 ? Math.round(hrs)+'h ago' : Math.round(hrs/24)+'d ago';
+  const el=document.getElementById('fresh');
+  el.textContent=rel+' · your local time';
+  el.className='fresh'+(hrs>36?' stale':'');
+}
+
+function render(SAMPLES, updatedUtc){
+  stamp(updatedUtc);
+  const dates=SAMPLES.map(s=>s[0]),vals=SAMPLES.map(s=>s[1]),n=vals.length;
+  const latest=vals[n-1],gm5=geomean(vals.slice(-Math.min(5,n)));
+  document.getElementById('cnt').textContent=n+' samples';
+  const lOK=latest<=THRESHOLD,gOK=gm5<=THRESHOLD;let cls='',word="DON'T SWIM";
+  if(lOK&&gOK){cls='open';word='SWIM';}else if(lOK&&gm5<=2*THRESHOLD){cls='caution';word='CAUTION';}
+  document.getElementById('hero').className='hero'+(cls?' '+cls:'');
+  document.getElementById('vw').textContent=word;const mult=latest/THRESHOLD;
+  document.getElementById('vm').textContent=mult>=1?mult.toFixed(1)+'\u00d7 over the line':(THRESHOLD/latest).toFixed(1)+'\u00d7 under';
+  const f0=fit(vals,Math.min(10,n)),wk=Math.exp(f0.b*7);
+  const dir=wk>1.05?'rising':wk<0.95?'improving':'flat';let reason;
+  if(word==='SWIM')reason='Latest reading and 5-sample average are both below the swim line. Within standards right now; trend '+dir+'.';
+  else if(word==='CAUTION')reason='Single reading is under the line but the 5-sample average ('+fmt(gm5)+') has not settled below it. Borderline \u2014 not a posted-clear day.';
+  else reason='Bacteria are '+mult.toFixed(1)+'\u00d7 the safe limit and the recent trend is '+dir+(wk>1?' ('+wk.toFixed(1)+'\u00d7 per week)':'')+'. Advisory-posted condition \u2014 avoid water contact.';
+  document.getElementById('vr').textContent=reason;
+  let e=document.getElementById('tL');e.textContent=fmt(latest);e.className='val '+(lOK?'ok':'bad');
+  document.getElementById('tLd').textContent=short(dates[n-1]);
+  e=document.getElementById('tG');e.textContent=fmt(gm5);e.className='val '+(gOK?'ok':'bad');
+  e=document.getElementById('tT');e.textContent=(wk>=1?wk.toFixed(1):wk.toFixed(2))+'\u00d7';e.className='val '+(wk>1.05?'bad':wk<0.95?'ok':'warn');
+  document.getElementById('tTd').textContent=dir;
+  let streak=0;for(let i=n-1;i>=0;i--){if(vals[i]<=THRESHOLD)streak++;else break;}
+  e=document.getElementById('tS');e.textContent=streak;e.className='val '+(streak>=3?'ok':streak>0?'warn':'bad');
+  const pb=f0.b,fitLast=f0.fitLast,proj=k=>Math.exp(fitLast+pb*k);
+  document.getElementById('p3').textContent=fmt(proj(3));document.getElementById('p7').textContent=fmt(proj(7));
+  let cross='\u2014';
+  if(latest<=THRESHOLD)cross='below now';
+  else if(pb<0){const d=(Math.log(THRESHOLD)-fitLast)/pb;cross=d<=14?'~'+Math.max(1,Math.round(d))+' days':'>14 days';}
+  else cross='not on trend';
+  document.getElementById('pc').textContent=cross;let call;
+  if(lOK&&gOK)call='Swimmable now. Watch for a fresh spike \u2014 this station can flip within a day.';
+  else if(pb<0){const d=(Math.log(THRESHOLD)-fitLast)/pb;
+  call=d<=7?'Improving. A single reading could dip below the line in about '+Math.max(1,Math.round(d))+' days \u2014 a brief mid-week window may open, but the 5-sample average would still need to follow.':'Improving slowly. Readings stay above the line through the coming week (crosses in ~'+Math.round(d)+' days). No reliable swim window in the next 7 days.';}
+  else call='Flat-to-rising. No swim window in the coming week on the current trend.';
+  document.getElementById('call').textContent=call;
+  const fut=[];for(let k=1;k<=7;k++)fut.push(addDays(dates[n-1],k));
+  const labels=dates.map(short).concat(fut.map(short));
+  const rd=vals.concat(Array(7).fill(null)),th=Array(n+7).fill(THRESHOLD);
+  const pd=Array(n+7).fill(null);pd[n-1]=vals[n-1];for(let k=1;k<=7;k++)pd[n-1+k]=Math.exp(fitLast+pb*k);
+  const pcol=(latest<=THRESHOLD||wk<0.9)?css('--safe'):wk<1?css('--caution'):css('--danger');
+  document.getElementById('psw').style.background=pcol;
+  const bands=[];let bs=-1;for(let i=0;i<n;i++){if(vals[i]>EVENT_CUT){if(bs<0)bs=i;}else if(bs>=0){bands.push([bs,i-1]);bs=-1;}}if(bs>=0)bands.push([bs,n-1]);
+  const ep={id:'ep',beforeDatasetsDraw(c){const a=c.chartArea,x=c.scales.x,ctx=c.ctx;ctx.save();
+  bands.forEach(function(bd){const x1=x.getPixelForValue(Math.max(0,bd[0]-.5)),x2=x.getPixelForValue(bd[1]+.5);
+  ctx.fillStyle=css('--event');ctx.fillRect(x1,a.top,x2-x1,a.bottom-a.top);
+  ctx.strokeStyle=css('--event-line');ctx.setLineDash([4,3]);ctx.strokeRect(x1,a.top,x2-x1,a.bottom-a.top);ctx.setLineDash([]);});
+  if(bands.length){let bg=bands.reduce(function(p,q){return (q[1]-q[0])>(p[1]-p[0])?q:p;});let pk=0,pi=bg[0];
+  for(let i=bg[0];i<=bg[1];i++)if(vals[i]>pk){pk=vals[i];pi=i;}
+  const cx=x.getPixelForValue((bg[0]+bg[1])/2);ctx.fillStyle=css('--danger');ctx.textAlign='center';
+  ctx.font='600 11px sans-serif';ctx.fillText('Contamination event',cx,a.top+14);
+  ctx.font='500 10px ui-monospace,monospace';ctx.fillText('peak '+fmt(pk)+' \u00b7 '+short(dates[pi]),cx,a.top+28);}ctx.restore();}};
+  if(chartInstance)chartInstance.destroy();
+  chartInstance=new Chart(document.getElementById('chart'),{type:'line',
+  data:{labels:labels,datasets:[
+  {data:rd,borderColor:css('--water'),backgroundColor:'rgba(47,124,201,.07)',borderWidth:2,pointRadius:2,pointBackgroundColor:css('--water'),fill:true,tension:.2},
+  {data:pd,borderColor:pcol,borderWidth:2,borderDash:[5,4],pointRadius:0,fill:false,tension:.2,spanGaps:true},
+  {data:th,borderColor:css('--danger'),borderWidth:2,borderDash:[6,4],pointRadius:0,fill:false}]},
+  options:{responsive:true,maintainAspectRatio:false,animation:{duration:400},
+  plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return c.raw==null?null:fmt(c.raw)+' copies/100ml';}}}},
+  scales:{y:{type:'logarithmic',min:400,ticks:{color:css('--soft'),font:{size:10},callback:function(v){return [500,1413,5000,50000,200000].indexOf(v)>=0?fmt(v):null;}},grid:{color:'#e3e9eb'}},
+  x:{ticks:{color:css('--soft'),font:{size:9},autoSkip:true,maxTicksLimit:16},grid:{display:false}}}},
+  plugins:[ep]});
+}
+
+async function load(){
+  try{
+    const r=await fetch('data/samples.json?t='+Date.now(),{cache:'no-store'});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const j=await r.json();
+    if(!j.readings||!j.readings.length)throw new Error('no readings');
+    render(j.readings, j.updated_utc);
+  }catch(err){
+    document.getElementById('vr').textContent='Could not load data ('+err.message+'). Will retry automatically.';
+  }
+}
+load();
+setInterval(load, 30*60*1000);                 // re-pull every 30 min
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) load(); });
+</script></body></html>

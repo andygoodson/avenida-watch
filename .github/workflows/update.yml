@@ -1,0 +1,67 @@
+name: Update beach data
+
+on:
+  schedule:
+    # Every 3 hours (UTC). County posts ~once/day; this catches it promptly.
+    - cron: "17 */3 * * *"
+  workflow_dispatch: {}   # manual "Run workflow" button in the Actions tab
+  push:
+    branches: [ main ]    # redeploy when you edit index.html, etc.
+
+permissions:
+  contents: write   # commit refreshed data/samples.json
+  pages: write      # deploy to GitHub Pages
+  id-token: write   # required by deploy-pages
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Fetch latest readings
+        continue-on-error: true   # a blocked run still deploys last good data
+        run: python fetch.py
+
+      - name: Commit data if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [ -n "$(git status --porcelain data/samples.json)" ]; then
+            git add data/samples.json
+            git commit -m "data: refresh readings [skip ci]"
+            git push
+          else
+            echo "No change in samples.json"
+          fi
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload site artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
