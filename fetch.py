@@ -6,9 +6,14 @@ merge them into data/stations.json. Designed to run in GitHub Actions on a
 schedule.
 
 Stations tracked (south -> north):
-  1. Avenida Lunar            (StationID IB-079, SiteId 121)   -- known/seeded
-  2. Coronado Lifeguard Tower (auto-discovered by name)
-  3. Coronado - North Beach   (StationID IB-080, auto-discovered by name)
+  1. Avenida Lunar                 (StationID IB-079, SiteId 121)
+  2. Coronado Main Lifeguard Tower (StationID EH-050, SiteId 7; pre-2019 IB-070)
+  3. Coronado North Beach          (StationID EH-060, SiteId 10; pre-2019 IB-080)
+
+SiteIds verified 2026-07-20 against the county Beach & Bay map ("Find a site"
+-> View Sample Data links). KNOWN_SITE_IDS below seeds them directly; the
+name-based discovery and probe remain as backstops in case the county
+renumbers again.
 
 How discovery works
 -------------------
@@ -55,10 +60,18 @@ def load_config():
     # key -> (name tokens that must all appear, known StationID or None)
     matchers = {
         "avenida":    (("avenida",), "IB-079"),
-        "lifeguard":  (("coronado",), None),     # + must contain lifeguard/tower
-        "northbeach": (("coronado", "north"), "IB-080"),
+        "lifeguard":  (("coronado",), "EH-050"),  # + must contain lifeguard/tower
+        "northbeach": (("coronado", "north"), "EH-060"),
     }
     return obj, stations, threshold, matchers
+
+
+# Verified county SiteIds (see module docstring). Applied before discovery.
+KNOWN_SITE_IDS = {
+    "avenida":    (121, "IB-079"),
+    "lifeguard":  (7,   "EH-050"),
+    "northbeach": (10,  "EH-060"),
+}
 
 
 def _grab(r, hits):
@@ -230,6 +243,14 @@ def main():
     if not stations:
         print("ERROR: no stations configured in stations.json", flush=True)
         sys.exit(1)
+
+    # Seed verified SiteIds/StationIDs before any discovery.
+    for st in stations:
+        known = KNOWN_SITE_IDS.get(st.get("key", ""))
+        if known:
+            sid, code = known
+            st["site_id"] = sid       # authoritative -- corrects stale values
+            st["station_id"] = code   # (e.g. pre-2019 IB-080 -> EH-060)
 
     any_ok = False
     with sync_playwright() as p:
