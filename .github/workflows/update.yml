@@ -46,12 +46,12 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          if [ -n "$(git status --porcelain data/samples.json)" ]; then
-            git add data/samples.json
+          if [ -n "$(git status --porcelain data/stations.json)" ]; then
+            git add data/stations.json
             git commit -m "data: refresh readings [skip ci]"
             git push
           else
-            echo "No change in samples.json"
+            echo "No change in stations.json"
           fi
 
       - name: Configure Pages

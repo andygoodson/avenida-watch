@@ -1,96 +1,246 @@
 #!/usr/bin/env python3
 """
-fetch.py - Pull Avenida Lunar (IB-079 / SiteId=121) Enterococcus readings from
-the San Diego County SamplesReport (OutSystems) app and merge into
-data/samples.json. Designed to run in GitHub Actions on a schedule.
+fetch.py - Pull Enterococcus readings for the Coronado beach stations tracked by
+this dashboard from the San Diego County SamplesReport (OutSystems) app and
+merge them into data/stations.json. Designed to run in GitHub Actions on a
+schedule.
 
-Loads the page headless, intercepts the ScreenDataSetGetSamples JSON response
-(all rows), filters to station IB-079 / Enterococcus, and merges with the
-existing series. If nothing is scraped (e.g. county blocks the runner IP or the
-schema changed), it exits non-zero and does NOT touch samples.json, so the last
-good data is preserved.
+Stations tracked (south -> north):
+  1. Avenida Lunar            (StationID IB-079, SiteId 121)   -- known/seeded
+  2. Coronado Lifeguard Tower (auto-discovered by name)
+  3. Coronado - North Beach   (StationID IB-080, auto-discovered by name)
+
+How discovery works
+-------------------
+The SamplesReport page loads a JSON "site list" used to populate its site
+selector. We load one known page (SiteId=121), intercept every JSON response,
+and search them for that site list -- records that pair a SiteId with a station
+name/StationID. From it we resolve the SiteId for each target station whose
+SiteId we don't already know, matching on the station name / StationID.
+
+Then, for each target SiteId, we load SamplesReport?SiteId=<id>, intercept the
+ScreenDataSetGetSamples payload, and pull that station's Enterococcus series.
+
+Safety: if a station can't be resolved or scraped (county blocks the runner IP,
+schema changes, etc.), that station's existing readings in stations.json are
+left untouched -- the last good data is preserved and the page never goes blank.
+The script exits non-zero only if NOTHING could be fetched for ANY station.
+
+Every run logs the full list of stations it discovered (SiteId, StationID,
+name) so the exact county codes are always visible in the Actions log.
 """
-import json, sys, datetime as dt
+import json, sys, re, datetime as dt
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
-SITE_ID = 121
-URL = f"https://cosdapps.sandiegocounty.gov/sdbeachinfo/SamplesReport?SiteId={SITE_ID}"
 ROOT = Path(__file__).resolve().parent
-DATA = ROOT / "data" / "samples.json"
+DATA = ROOT / "data" / "stations.json"
+BASE = "https://cosdapps.sandiegocounty.gov/sdbeachinfo/SamplesReport?SiteId={sid}"
+
+# Name-key candidates seen in OutSystems site records.
+NAME_KEYS = ("SiteName", "Name", "Label", "BeachName", "Description",
+             "StationName", "Title", "DisplayName")
 
 
-def scrape():
+def norm(s):
+    return re.sub(r"[^a-z0-9]+", " ", str(s or "").lower()).strip()
+
+
+def load_config():
+    """Return the tracked stations from stations.json plus the name/StationID
+    matchers used to auto-resolve each station's SiteId."""
+    obj = json.loads(DATA.read_text()) if DATA.exists() else {}
+    stations = obj.get("stations", [])
+    threshold = obj.get("threshold", 1413)
+    # key -> (name tokens that must all appear, known StationID or None)
+    matchers = {
+        "avenida":    (("avenida",), "IB-079"),
+        "lifeguard":  (("coronado",), None),     # + must contain lifeguard/tower
+        "northbeach": (("coronado", "north"), "IB-080"),
+    }
+    return obj, stations, threshold, matchers
+
+
+def _grab(r, hits):
+    try:
+        if "sdbeachinfo" in r.url and "json" in r.headers.get("content-type", ""):
+            hits.append((r.url, r.json()))
+    except Exception:
+        pass
+
+
+def capture(browser, url, wait=4500):
+    """Load url in a fresh page and return every JSON payload seen."""
     hits = []
-    with sync_playwright() as p:
-        b = p.chromium.launch(headless=True)
-        pg = b.new_page()
-        pg.on("response", lambda r: hits.append(r)
-              if "ScreenDataSetGetSamples" in r.url else None)
-        print(f"Loading {URL}", flush=True)
-        pg.goto(URL, wait_until="networkidle", timeout=60000)
-        pg.wait_for_timeout(4000)
-        payloads = []
-        for r in hits:
-            try:
-                payloads.append(r.json())
-            except Exception:
-                pass
-        b.close()
+    pg = browser.new_page()
+    pg.on("response", lambda r: _grab(r, hits))
+    print(f"Loading {url}", flush=True)
+    try:
+        pg.goto(url, wait_until="networkidle", timeout=60000)
+        pg.wait_for_timeout(wait)
+    finally:
+        pg.close()
+    return hits
 
+
+def find_site_list(payloads):
+    """Scan captured JSON for records pairing a SiteId with a name/StationID.
+    Returns list of {site_id, station_id, name}."""
+    found = {}
+
+    def walk(o):
+        if isinstance(o, dict):
+            if "SiteId" in o:
+                nm = next((o[k] for k in NAME_KEYS if o.get(k)), "")
+                sid = o.get("StationID") or o.get("StationId") or ""
+                try:
+                    site_id = int(o["SiteId"])
+                except (TypeError, ValueError):
+                    site_id = None
+                if site_id is not None and (nm or sid):
+                    found[(site_id, str(sid))] = {
+                        "site_id": site_id, "station_id": str(sid),
+                        "name": str(nm)}
+            for v in o.values():
+                walk(v)
+        elif isinstance(o, list):
+            for v in o:
+                walk(v)
+
+    for _, pl in payloads:
+        walk(pl)
+    return list(found.values())
+
+
+def extract_samples(payloads, want_station=None):
+    """Pull (date, value) Enterococcus rows. If want_station is given, keep only
+    that StationID; else keep all rows (page is already site-scoped). Also
+    returns the StationID observed in the payload."""
     recs = []
-    for pl in payloads:
+    for _, pl in payloads:
         try:
             recs.extend(pl["data"]["List"]["List"])
         except Exception:
             continue
 
-    out = []
+    out, seen_station = [], None
     for rec in recs:
-        if rec.get("Site", {}).get("StationID", "") != "IB-079":
+        st_id = rec.get("Site", {}).get("StationID", "")
+        if st_id:
+            seen_station = st_id
+        if want_station and st_id != want_station:
             continue
-        s = rec.get("Sample", {})
         param = rec.get("Parameter", {}).get("Label", "")
         if param and param != "Enterococcus":
             continue
+        s = rec.get("Sample", {})
         date = str(s.get("SampleDate", ""))[:10]
         res = str(s.get("Result", "")).replace(",", "").strip()
         if len(date) == 10 and res.replace(".", "").isdigit():
             out.append((date, int(float(res))))
-    print(f"payloads={len(payloads)} station_rows={len(out)}", flush=True)
-    return out
+    return out, seen_station
 
 
-def main():
-    rows = scrape()
-    if not rows:
-        print("ERROR: no rows extracted. Leaving samples.json untouched.",
-              flush=True)
-        sys.exit(1)
+def resolve_site_id(cfg, matchers, site_list):
+    """Resolve a SiteId (and StationID/name) for a station from the site list."""
+    key = cfg.get("key", "")
+    contains, want_sid = matchers.get(key, ((), None))
+    if want_sid:                                    # match by known StationID
+        for s in site_list:
+            if norm(s["station_id"]) == norm(want_sid) and s["site_id"]:
+                return s["site_id"], s["station_id"], s["name"]
+    for s in site_list:                             # match by name tokens
+        nm = norm(s["name"])
+        if contains and all(tok in nm for tok in contains):
+            if key == "lifeguard" and not ("lifeguard" in nm or "tower" in nm):
+                continue
+            return s["site_id"], s["station_id"], s["name"]
+    return None, want_sid, None
 
-    data = {}
-    if DATA.exists():
-        obj = json.loads(DATA.read_text())
-        for d, v in obj.get("readings", []):
-            data[d] = v
+
+def merge(station, rows):
+    data = {d: v for d, v in station.get("readings", [])}
     before = len(data)
     for d, v in rows:
         data[d] = v
-    added = len(data) - before
+    station["readings"] = [[d, data[d]] for d in sorted(data)]
+    return len(data) - before
 
-    series = [[d, data[d]] for d in sorted(data)]
-    out = {
-        "station": "IB-079",
-        "site_id": SITE_ID,
-        "threshold": 1413,
+
+def main():
+    obj, stations, threshold, matchers = load_config()
+    if not stations:
+        print("ERROR: no stations configured in stations.json", flush=True)
+        sys.exit(1)
+
+    any_ok = False
+    with sync_playwright() as p:
+        b = p.chromium.launch(headless=True)
+
+        # --- Phase 1: discover the site list from a known page ---
+        seed = next((s for s in stations if s.get("site_id")), stations[0])
+        seed_sid = seed.get("site_id") or 121
+        seed_page = capture(b, BASE.format(sid=seed_sid))
+        site_list = find_site_list(seed_page)
+        print(f"Discovered {len(site_list)} sites from selector payload.",
+              flush=True)
+        for s in sorted(site_list, key=lambda x: x["site_id"]):
+            print(f"  SiteId={s['site_id']:>4}  {s['station_id']:<8}  "
+                  f"{s['name']}", flush=True)
+        page_cache = {seed_sid: seed_page}
+
+        # --- Phase 2: resolve + fetch each tracked station ---
+        for st in stations:
+            sid = st.get("site_id")
+            if not sid:
+                sid, res_station, res_name = resolve_site_id(
+                    st, matchers, site_list)
+                if sid:
+                    st["site_id"] = sid
+                    if res_station and not st.get("station_id"):
+                        st["station_id"] = res_station
+                    print(f"Resolved {st['name']} -> SiteId={sid} "
+                          f"StationID={st.get('station_id')} ({res_name})",
+                          flush=True)
+                else:
+                    print(f"WARN: could not resolve SiteId for {st['name']}; "
+                          f"keeping existing readings.", flush=True)
+                    continue
+
+            payloads = page_cache.get(sid) or capture(b, BASE.format(sid=sid))
+            rows, seen = extract_samples(payloads, want_station=st.get("station_id"))
+            if not rows and st.get("station_id"):
+                rows, seen = extract_samples(payloads, want_station=None)
+            if seen and not st.get("station_id"):
+                st["station_id"] = seen
+
+            if rows:
+                added = merge(st, rows)
+                any_ok = True
+                latest = st["readings"][-1]
+                print(f"OK {st['name']} (SiteId={sid}): {len(rows)} scraped, "
+                      f"{added} new, {len(st['readings'])} total. "
+                      f"Latest {latest[0]} = {latest[1]}.", flush=True)
+            else:
+                print(f"WARN: no rows for {st['name']} (SiteId={sid}); "
+                      f"keeping existing readings.", flush=True)
+
+        b.close()
+
+    if not any_ok:
+        print("ERROR: nothing fetched for any station. Leaving stations.json "
+              "untouched.", flush=True)
+        sys.exit(1)
+
+    stations.sort(key=lambda s: s.get("order", 99))
+    obj.update({
+        "threshold": threshold,
         "updated_utc": dt.datetime.now(dt.timezone.utc)
                          .strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "readings": series,
-    }
-    DATA.write_text(json.dumps(out, indent=1))
-    latest = series[-1]
-    print(f"OK: {len(rows)} scraped, {added} new, {len(series)} total. "
-          f"Latest {latest[0]} = {latest[1]} copies/100ml.", flush=True)
+        "stations": stations,
+    })
+    DATA.write_text(json.dumps(obj, indent=1))
+    print("Wrote data/stations.json", flush=True)
 
 
 if __name__ == "__main__":
