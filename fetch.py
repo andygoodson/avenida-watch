@@ -123,11 +123,14 @@ def extract_samples(payloads, want_station=None):
         except Exception:
             continue
 
-    out, seen_station = [], None
+    out, seen_station, seen_name = [], None, ""
     for rec in recs:
-        st_id = rec.get("Site", {}).get("StationID", "")
+        site = rec.get("Site", {}) or {}
+        st_id = site.get("StationID", "")
         if st_id:
             seen_station = st_id
+        if not seen_name:
+            seen_name = next((site[k] for k in NAME_KEYS if site.get(k)), "")
         if want_station and st_id != want_station:
             continue
         param = rec.get("Parameter", {}).get("Label", "")
@@ -138,7 +141,7 @@ def extract_samples(payloads, want_station=None):
         res = str(s.get("Result", "")).replace(",", "").strip()
         if len(date) == 10 and res.replace(".", "").isdigit():
             out.append((date, int(float(res))))
-    return out, seen_station
+    return out, seen_station, seen_name
 
 
 def resolve_site_id(cfg, matchers, site_list):
@@ -167,6 +170,61 @@ def merge(station, rows):
     return len(data) - before
 
 
+def match_station(cfg, matchers, station_id, name):
+    """Does a (StationID, name) pair from a probed page match this station?"""
+    key = cfg.get("key", "")
+    contains, want_sid = matchers.get(key, ((), None))
+    if want_sid and station_id and norm(station_id) == norm(want_sid):
+        return True
+    nm = norm(name)
+    if not nm or not contains:
+        return False
+    if not all(tok in nm for tok in contains):
+        return False
+    if key == "lifeguard" and not ("lifeguard" in nm or "tower" in nm):
+        return False
+    return True
+
+
+def probe_site_ids(browser, stations, matchers, page_cache):
+    """Fallback: walk SiteIds near the known seed and identify stations from
+    their own sample payloads (Site.StationID + name). Resolves any station
+    still missing a site_id. Logs every station encountered."""
+    unresolved = [s for s in stations if not s.get("site_id")]
+    if not unresolved:
+        return
+    known = {s.get("site_id") for s in stations if s.get("site_id")}
+    seed = min(known) if known else 121
+    # spiral outward from the seed: 122,120,123,119,... within a sane window
+    candidates = []
+    for d in range(1, 20):
+        for sid in (seed + d, seed - d):
+            if sid > 0 and sid not in known:
+                candidates.append(sid)
+    print(f"PROBE: resolving {[s['name'] for s in unresolved]} by walking "
+          f"SiteIds around {seed}...", flush=True)
+    for sid in candidates:
+        if not any(not s.get("site_id") for s in stations):
+            break
+        payloads = capture(browser, BASE.format(sid=sid), wait=3000)
+        page_cache[sid] = payloads
+        rows, st_code, st_name = extract_samples(payloads)
+        print(f"  probe SiteId={sid}: StationID={st_code or '?'} "
+              f"name='{st_name or '?'}' rows={len(rows)}", flush=True)
+        if not (st_code or st_name):
+            continue
+        for cfg in stations:
+            if cfg.get("site_id"):
+                continue
+            if match_station(cfg, matchers, st_code, st_name):
+                cfg["site_id"] = sid
+                if st_code and not cfg.get("station_id"):
+                    cfg["station_id"] = st_code
+                print(f"  RESOLVED {cfg['name']} -> SiteId={sid} "
+                      f"StationID={st_code} ('{st_name}')", flush=True)
+                break
+
+
 def main():
     obj, stations, threshold, matchers = load_config()
     if not stations:
@@ -189,28 +247,36 @@ def main():
                   f"{s['name']}", flush=True)
         page_cache = {seed_sid: seed_page}
 
-        # --- Phase 2: resolve + fetch each tracked station ---
+        # --- Phase 2: resolve missing SiteIds from the discovered site list ---
+        for st in stations:
+            if st.get("site_id"):
+                continue
+            sid, res_station, res_name = resolve_site_id(st, matchers, site_list)
+            if sid:
+                st["site_id"] = sid
+                if res_station and not st.get("station_id"):
+                    st["station_id"] = res_station
+                print(f"Resolved {st['name']} -> SiteId={sid} "
+                      f"StationID={st.get('station_id')} ({res_name})",
+                      flush=True)
+
+        # --- Phase 2b: probe fallback for anything still unresolved ---
+        probe_site_ids(b, stations, matchers, page_cache)
+
+        # --- Phase 3: fetch each resolved station ---
         for st in stations:
             sid = st.get("site_id")
             if not sid:
-                sid, res_station, res_name = resolve_site_id(
-                    st, matchers, site_list)
-                if sid:
-                    st["site_id"] = sid
-                    if res_station and not st.get("station_id"):
-                        st["station_id"] = res_station
-                    print(f"Resolved {st['name']} -> SiteId={sid} "
-                          f"StationID={st.get('station_id')} ({res_name})",
-                          flush=True)
-                else:
-                    print(f"WARN: could not resolve SiteId for {st['name']}; "
-                          f"keeping existing readings.", flush=True)
-                    continue
+                print(f"WARN: could not resolve SiteId for {st['name']}; "
+                      f"keeping existing readings.", flush=True)
+                continue
 
             payloads = page_cache.get(sid) or capture(b, BASE.format(sid=sid))
-            rows, seen = extract_samples(payloads, want_station=st.get("station_id"))
+            page_cache[sid] = payloads
+            rows, seen, _ = extract_samples(
+                payloads, want_station=st.get("station_id"))
             if not rows and st.get("station_id"):
-                rows, seen = extract_samples(payloads, want_station=None)
+                rows, seen, _ = extract_samples(payloads, want_station=None)
             if seen and not st.get("station_id"):
                 st["station_id"] = seen
 
