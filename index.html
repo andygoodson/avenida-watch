@@ -10,7 +10,7 @@
 --shadow:0 1px 2px rgba(13,34,49,.06),0 8px 24px rgba(13,34,49,.06);}
 *{box-sizing:border-box}
 body{margin:0;background:var(--ground);color:var(--ink);font-family:Inter,system-ui,-apple-system,sans-serif;padding:22px 18px 44px}
-.wrap{max-width:900px;margin:0 auto}
+.wrap{max-width:900px;margin:0 auto;touch-action:pan-y pinch-zoom}
 .mono{font-variant-numeric:tabular-nums}
 .eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--soft);font-family:ui-monospace,monospace}
 header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;padding-bottom:14px;border-bottom:2px solid var(--ink);margin-bottom:20px}
@@ -30,6 +30,10 @@ padding:4px 10px;border-radius:20px;cursor:pointer;transition:all .12s}
 .dot:hover{border-color:var(--soft)}
 .dot.on{background:var(--ink);color:#fff;border-color:var(--ink)}
 .dot .n{opacity:.5;margin-right:5px}
+.swipehint{display:none;align-items:center;gap:7px;margin-top:10px;font-size:10.5px;color:var(--soft);
+font-family:ui-monospace,monospace;letter-spacing:.06em;text-transform:uppercase}
+.swipehint .ar{font-size:14px;opacity:.55}
+#deck{will-change:transform,opacity}
 .asof{text-align:right;flex-shrink:0}
 .hero{background:var(--panel);border-radius:14px;box-shadow:var(--shadow);padding:22px 24px;margin-bottom:16px;border-left:6px solid var(--danger)}
 .hero.open{border-left-color:var(--safe)}.hero.caution{border-left-color:var(--caution)}.hero.none{border-left-color:var(--soft)}
@@ -59,8 +63,17 @@ padding:4px 10px;border-radius:20px;cursor:pointer;transition:all .12s}
 .fresh{font-size:11px;color:var(--soft);margin-top:2px}
 .stale{color:var(--danger)}
 footer{font-size:11.5px;color:var(--soft);margin-top:22px;line-height:1.55}
-@media(max-width:640px){.tiles{grid-template-columns:repeat(2,1fr)}h1{font-size:22px}.verdict .word{font-size:32px}header{flex-direction:column;align-items:flex-start}.asof{text-align:left}}
-</style></head><body><div class="wrap">
+@media(max-width:640px){.tiles{grid-template-columns:repeat(2,1fr)}h1{font-size:22px}.verdict .word{font-size:32px}header{flex-direction:column;align-items:flex-start}.asof{text-align:left}
+body{padding:18px 14px 40px}
+.navbtn{width:40px;height:40px;font-size:21px}
+.dots{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+.dots::-webkit-scrollbar{display:none}
+.dot{flex-shrink:0;padding:6px 12px}
+.chartbox,.emptybox{height:300px}
+.hero{padding:18px 18px}.panel{padding:18px 18px}}
+@media(pointer:coarse){.swipehint{display:flex}}
+@media(prefers-reduced-motion:reduce){#deck{transition:none!important}}
+</style></head><body><div class="wrap" id="swipezone">
 <header><div class="brand">
 <div class="eyebrow" id="eyebrow">Coronado · ddPCR daily</div>
 <div class="stationnav">
@@ -69,9 +82,11 @@ footer{font-size:11.5px;color:var(--soft);margin-top:22px;line-height:1.55}
 <button class="navbtn" id="next" aria-label="Next station (north)" title="Next station — north">&#8250;</button>
 </div>
 <div class="dots" id="dots"></div>
+<div class="swipehint"><span class="ar">&#8249;</span>Swipe to change station<span class="ar">&#8250;</span></div>
 </div>
 <div class="asof"><div class="eyebrow">Updated</div><div class="mono" id="gen">loading…</div>
 <div class="fresh" id="fresh"></div><div class="eyebrow" id="cnt"></div></div></header>
+<div id="deck">
 <div class="hero" id="hero"><div class="verdict"><span class="word" id="vw">&mdash;</span>
 <span class="mult" id="vm"></span></div><div class="reason" id="vr">Loading latest readings…</div></div>
 <div class="tiles">
@@ -93,7 +108,8 @@ footer{font-size:11.5px;color:var(--soft);margin-top:22px;line-height:1.55}
 <div><div class="lab">Projected +7d</div><div class="num" id="p7"></div></div>
 <div><div class="lab">Crosses line</div><div class="num" id="pc"></div></div></div>
 <div class="caveat">Projection is a log-linear fit on recent readings — direction only. These stations' spikes come from transboundary sewage flows that arrive with little warning, so a clean forecast can be overturned by one surge. An advisory lifts only when both the latest sample and the 5-sample geomean fall below the line.</div></div>
-<footer>Source: San Diego County DEHQ SamplesReport, auto-fetched every few hours. Standard: 1,413 copies/100ml ddPCR. Live: sdbeachinfo.com · Use the ‹ › arrows (or ← → keys) to move between stations, south to north. This page refreshes itself; pull it up on any device.</footer>
+</div>
+<footer>Source: San Diego County DEHQ SamplesReport, auto-fetched every few hours. Standard: 1,413 copies/100ml ddPCR. Live: sdbeachinfo.com · Swipe left or right — or use the ‹ › arrows and ← → keys — to move between stations, south to north. This page refreshes itself; pull it up on any device.</footer>
 </div>
 <script>
 const EVENT_CUT=20000;
@@ -222,20 +238,47 @@ function buildDots(){
     const b=document.createElement('button');
     b.className='dot'+(i===STATE.idx?' on':'');
     b.innerHTML='<span class="n">'+(i+1)+'</span>'+(st.short||st.name);
-    b.onclick=function(){show(i);};
+    b.onclick=function(){show(i,i>STATE.idx?1:-1);};
     wrap.appendChild(b);
   });
 }
 
-function show(i){
+const REDUCE=!!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+let animating=false;
+
+function apply(i){
   const n=STATE.stations.length;if(!n)return;
   STATE.idx=(i%n+n)%n;
   const st=STATE.stations[STATE.idx];
   document.getElementById('stationName').textContent=st.name;
   document.getElementById('eyebrow').textContent=stationLabel(st);
   document.querySelectorAll('.dot').forEach((d,j)=>d.classList.toggle('on',j===STATE.idx));
+  const on=document.querySelector('.dot.on');
+  if(on&&on.scrollIntoView)on.scrollIntoView({block:'nearest',inline:'center',behavior:REDUCE?'auto':'smooth'});
   stamp(STATE.updated);
   render(st);
+}
+
+// dir: +1 = advancing north (content exits left), -1 = south. Omit for no animation.
+function show(i,dir){
+  const n=STATE.stations.length;if(!n)return;
+  const target=(i%n+n)%n;
+  if(!dir||REDUCE||animating||target===STATE.idx){apply(target);return;}
+  const d=document.getElementById('deck');
+  animating=true;
+  d.style.transition='transform .12s ease-in,opacity .12s ease-in';
+  d.style.transform='translateX('+(-dir*26)+'px)';
+  d.style.opacity='0';
+  setTimeout(function(){
+    apply(target);
+    d.style.transition='none';
+    d.style.transform='translateX('+(dir*26)+'px)';
+    void d.offsetWidth;                                  // force reflow before easing back
+    d.style.transition='transform .2s cubic-bezier(.22,.61,.36,1),opacity .2s ease-out';
+    d.style.transform='translateX(0)';
+    d.style.opacity='1';
+    setTimeout(function(){animating=false;d.style.transition='';},220);
+  },125);
 }
 
 async function load(){
@@ -256,12 +299,42 @@ async function load(){
   }
 }
 
-document.getElementById('prev').onclick=function(){show(STATE.idx-1);};
-document.getElementById('next').onclick=function(){show(STATE.idx+1);};
+document.getElementById('prev').onclick=function(){show(STATE.idx-1,-1);};
+document.getElementById('next').onclick=function(){show(STATE.idx+1,1);};
 document.addEventListener('keydown',function(e){
-  if(e.key==='ArrowLeft')show(STATE.idx-1);
-  else if(e.key==='ArrowRight')show(STATE.idx+1);
+  if(e.key==='ArrowLeft')show(STATE.idx-1,-1);
+  else if(e.key==='ArrowRight')show(STATE.idx+1,1);
 });
+
+// Touch swipe: drag left = next station (north), drag right = previous (south).
+// Axis is locked on the first few pixels so vertical page scrolling is never hijacked.
+(function(){
+  const zone=document.getElementById('swipezone');
+  if(!zone||!('ontouchstart' in window))return;
+  let x0=0,y0=0,t0=0,lock=null,live=false;
+  zone.addEventListener('touchstart',function(e){
+    // ignore multi-touch (pinch-zoom) and drags that start on the scrollable dot strip
+    if(e.touches.length!==1||(e.target.closest&&e.target.closest('.dots'))){live=false;return;}
+    const t=e.touches[0];x0=t.clientX;y0=t.clientY;t0=Date.now();lock=null;live=true;
+  },{passive:true});
+  zone.addEventListener('touchmove',function(e){
+    if(!live)return;
+    if(e.touches.length!==1){live=false;return;}
+    if(lock)return;
+    const t=e.touches[0],dx=Math.abs(t.clientX-x0),dy=Math.abs(t.clientY-y0);
+    if(dx<8&&dy<8)return;
+    lock=dx>dy*1.3?'h':'v';
+  },{passive:true});
+  zone.addEventListener('touchend',function(e){
+    if(!live)return;live=false;
+    if(lock!=='h')return;
+    const t=e.changedTouches[0],dx=t.clientX-x0,dy=t.clientY-y0,dt=Date.now()-t0;
+    if(Math.abs(dy)>90)return;                                  // drifted too far vertically
+    if(Math.abs(dx)<60&&!(Math.abs(dx)>28&&dt<300))return;      // needs distance or a flick
+    if(dx<0)show(STATE.idx+1,1);else show(STATE.idx-1,-1);
+  },{passive:true});
+  zone.addEventListener('touchcancel',function(){live=false;},{passive:true});
+})();
 load();
 setInterval(load, 30*60*1000);                 // re-pull every 30 min
 document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) load(); });
