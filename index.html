@@ -2,6 +2,13 @@
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Coronado Swim-o-meter</title>
+<meta name="description" content="Is the water safe to swim in Coronado today? Live bacteria readings for Dog Beach, Hotel Del, and The Shores from San Diego County sampling data.">
+<meta name="theme-color" content="#f5ead8">
+<meta property="og:title" content="Coronado Swim-o-meter">
+<meta property="og:description" content="Is the water safe to swim in Coronado today? Live bacteria readings for Dog Beach, Hotel Del, and The Shores.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://andygoodson.github.io/avenida-watch/">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>&#127754;</text></svg>">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=Caprasimo&family=Figtree:wght@400;600;700;800&display=swap">
 <style>
@@ -68,8 +75,8 @@ footer{margin-top:18px;font-size:11px;color:var(--n600);line-height:1.6;text-ali
 <div class="cards" id="cards"></div>
 <div class="chip" id="chip" style="display:none"></div>
 <div class="explain"><div class="t">How &ldquo;100%&rdquo; works</div>
-<p>100% = bacteria under the county&rsquo;s safety line of 1,413 copies/100&thinsp;ml. Today&rsquo;s sample <em>and</em> the 5-sample day average both need to clear it before we say yes.</p></div>
-<footer id="foot">County data, refreshed every 30 min</footer>
+<p>100% = bacteria under the county&rsquo;s safety line of 1,413 copies/100&thinsp;ml. Today&rsquo;s sample <em>and</em> the average of the last 5 samples both need to clear it before we say yes.</p></div>
+<footer id="foot">County data, checked every 30 min</footer>
 </div>
 <div class="backdrop" id="backdrop"></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
@@ -89,9 +96,10 @@ const LOCAL={northbeach:{name:'Dog Beach',tag:'north end',order:0},lifeguard:{na
 let DATA=null,chartInst=null;
 const $=id=>document.getElementById(id);
 const fmt=n=>Math.round(n).toLocaleString('en-US');
-const geomean=a=>Math.exp(a.reduce((s,x)=>s+Math.log(x),0)/a.length);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const geomean=a=>Math.exp(a.reduce((s,x)=>s+Math.log(Math.max(x,1)),0)/a.length);
 function fit(v,n){const p=v.slice(-n),k=p.length;if(k<2)return{b:0,last:Math.log(p[0]||1)};
-const xs=p.map((_,i)=>i),ys=p.map(x=>Math.log(x));
+const xs=p.map((_,i)=>i),ys=p.map(x=>Math.log(Math.max(x,1)));
 const mx=xs.reduce((a,b)=>a+b,0)/k,my=ys.reduce((a,b)=>a+b,0)/k;let nu=0,de=0;
 for(let i=0;i<k;i++){nu+=(xs[i]-mx)*(ys[i]-my);de+=(xs[i]-mx)**2}
 const b=de?nu/de:0;return{b,last:my+b*(xs[k-1]-mx)}}
@@ -138,7 +146,7 @@ function render(j){
   intro='Every beach is under a bacteria advisory today. Here\u2019s how close each one is to being swimmable, north to south:'}
   $('verdict').textContent=v;$('intro').textContent=intro;
   $('cards').innerHTML=infos.map(({st,a})=>{
-    const L=LOCAL[st.key]||{name:st.name,tag:''};
+    const L=LOCAL[st.key]||{name:esc(st.name),tag:''};
     const tagCls=(a.open||a.pct>=85)?'sage':'terra';
     const pctTxt=a.empty?'':(a.open?'100% — open!':a.pct+'% there');
     const pctColor=(a.open||a.pct>=85)?'var(--sage-700)':'var(--terra-700)';
@@ -158,7 +166,7 @@ function render(j){
   else chip.style.display='none';
   if(j.updated_utc){const d=new Date(j.updated_utc),hrs=(Date.now()-d.getTime())/3.6e6;
     const rel=hrs<1?'just now':hrs<48?Math.round(hrs)+' h ago':Math.round(hrs/24)+' d ago';
-    $('foot').innerHTML='County data, refreshed every 30 min · updated '+d.toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' ('+(hrs>36?'<span class="stale">'+rel+' — data may be stale</span>':rel)+')';}
+    $('foot').innerHTML='County data, checked every 30 min · updated '+d.toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' ('+(hrs>36?'<span class="stale">'+rel+' — data may be stale</span>':rel)+')';}
 }
 async function load(){
   try{
@@ -196,6 +204,8 @@ function openSheet(key){
   const labels=dates.map(shortD).concat(fut.map(shortD));
   const rd=vals.concat(Array(7).fill(null)),th=Array(n+7).fill(T);
   const pd=Array(n+7).fill(null);pd[n-1]=vals[n-1];for(let k=1;k<=7;k++)pd[n-1+k]=Math.exp(f.last+f.b*k);
+  const yMin=Math.max(1,Math.floor(Math.min(...vals)*0.7));
+  const yTicks=[10,100,500,T,5000,50000,200000].filter(v=>v>=yMin);
   const pcol=a.falling||a.open?'#728157':'#f6a06b';
   document.getElementById('projSw').style.background=pcol;
   const wrap=document.querySelector('.chartwrap');
@@ -210,7 +220,7 @@ function openSheet(key){
   {data:th,borderColor:'#c67139',borderWidth:2,borderDash:[6,4],pointRadius:0,fill:false}]},
   options:{responsive:true,maintainAspectRatio:false,animation:{duration:300},
   plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.raw==null?null:fmt(c.raw)+' copies/100ml'}}},
-  scales:{y:{type:'logarithmic',min:400,ticks:{color:'#82796a',font:{size:10},callback:v=>[500,T,5000,50000,200000].indexOf(v)>=0?fmt(v):null},grid:{color:'#eee7db'}},
+  scales:{y:{type:'logarithmic',min:yMin,ticks:{color:'#82796a',font:{size:10},callback:v=>yTicks.indexOf(v)>=0?fmt(v):null},grid:{color:'#eee7db'}},
   x:{ticks:{color:'#82796a',font:{size:9},autoSkip:true,maxTicksLimit:12},grid:{display:false}}}}});
   }
   document.getElementById('backdrop').classList.add('on');
