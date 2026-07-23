@@ -1,341 +1,227 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Coronado Beach Watch</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<title>Coronado Swim-o-meter</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=Caprasimo&family=Figtree:wght@400;600;700;800&display=swap">
 <style>
-:root{--ground:#eaf0f1;--panel:#fff;--ink:#0d2231;--soft:#5a6b74;--hair:#d3dbde;
---safe:#0e9a8c;--caution:#cf8a1c;--danger:#d9452f;--water:#2f7cc9;
---event:rgba(217,69,47,.10);--event-line:rgba(217,69,47,.55);
---shadow:0 1px 2px rgba(13,34,49,.06),0 8px 24px rgba(13,34,49,.06);}
+:root{
+--bg:#f5ead8;--surface:#ebddc5;--ink:#201e1d;
+--n200:#eee7db;--n600:#82796a;--n700:#645c50;--n800:#474238;
+--terra:#c67139;--terra-200:#ffe1d0;--terra-400:#f6a06b;--terra-700:#8c491a;--terra-800:#643312;
+--sage-100:#f0fae1;--sage-200:#e1eecc;--sage-500:#8fa073;--sage-600:#728157;--sage-700:#56633f;--sage-800:#3d472b;
+--radius:28px;--shadow:0 1px 2px rgba(46,43,37,.14);
+}
 *{box-sizing:border-box}
-body{margin:0;background:var(--ground);color:var(--ink);font-family:Inter,system-ui,-apple-system,sans-serif;padding:22px 18px 44px}
-.wrap{max-width:900px;margin:0 auto;touch-action:pan-y pinch-zoom}
-.mono{font-variant-numeric:tabular-nums}
-.eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--soft);font-family:ui-monospace,monospace}
-header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;padding-bottom:14px;border-bottom:2px solid var(--ink);margin-bottom:20px}
-h1{font-size:29px;letter-spacing:-.01em;margin:0;line-height:1}
-.stationnav{display:flex;align-items:center;gap:12px;margin-top:6px}
-.navbtn{appearance:none;border:1px solid var(--hair);background:var(--panel);color:var(--ink);
-width:34px;height:34px;border-radius:9px;font-size:19px;line-height:1;cursor:pointer;
-box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;flex-shrink:0;
-transition:background .12s,border-color .12s,transform .05s}
-.navbtn:hover{background:#f3f7f8;border-color:var(--soft)}
-.navbtn:active{transform:translateY(1px)}
-.navbtn:focus-visible{outline:2px solid var(--water);outline-offset:2px}
-.dots{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
-.dot{appearance:none;border:1px solid var(--hair);background:var(--panel);color:var(--soft);
-font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-family:ui-monospace,monospace;
-padding:4px 10px;border-radius:20px;cursor:pointer;transition:all .12s}
-.dot:hover{border-color:var(--soft)}
-.dot.on{background:var(--ink);color:#fff;border-color:var(--ink)}
-.dot .n{opacity:.5;margin-right:5px}
-.swipehint{display:none;align-items:center;gap:7px;margin-top:10px;font-size:10.5px;color:var(--soft);
-font-family:ui-monospace,monospace;letter-spacing:.06em;text-transform:uppercase}
-.swipehint .ar{font-size:14px;opacity:.55}
-#deck{will-change:transform,opacity}
-.asof{text-align:right;flex-shrink:0}
-.hero{background:var(--panel);border-radius:14px;box-shadow:var(--shadow);padding:22px 24px;margin-bottom:16px;border-left:6px solid var(--danger)}
-.hero.open{border-left-color:var(--safe)}.hero.caution{border-left-color:var(--caution)}.hero.none{border-left-color:var(--soft)}
-.verdict{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
-.verdict .word{font-size:40px;font-weight:800;letter-spacing:-.02em;line-height:1;color:var(--danger)}
-.hero.open .word{color:var(--safe)}.hero.caution .word{color:var(--caution)}.hero.none .word{color:var(--soft)}
-.verdict .mult{font-size:14px;color:var(--soft);padding:3px 9px;border:1px solid var(--hair);border-radius:20px;font-family:ui-monospace,monospace}
-.reason{margin:12px 0 0;font-size:15px;max-width:64ch}
-.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
-.tile{background:var(--panel);border-radius:12px;box-shadow:var(--shadow);padding:14px 15px}
-.tile .lab{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);font-family:ui-monospace,monospace}
-.tile .val{font-size:23px;font-weight:700;margin-top:5px;line-height:1}
-.tile .sub{font-size:11.5px;color:var(--soft);margin-top:4px}
-.val.bad{color:var(--danger)}.val.ok{color:var(--safe)}.val.warn{color:var(--caution)}
-.panel{background:var(--panel);border-radius:14px;box-shadow:var(--shadow);padding:20px 22px;margin-bottom:16px}
-.panel h2{font-size:14px;font-weight:700;letter-spacing:.02em;margin:0 0 8px;text-transform:uppercase}
-.chartbox{position:relative;height:340px}
-.emptybox{height:340px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--soft);text-align:center}
-.emptybox .big{font-size:15px;color:var(--ink);font-weight:600}
-.legend{display:flex;flex-wrap:wrap;gap:16px;margin-top:12px;font-size:12px;color:var(--soft)}
-.legend span{display:flex;align-items:center;gap:6px}.sw{width:16px;height:3px;border-radius:2px}
-.call{font-size:15.5px;max-width:66ch}
-.proj{display:flex;gap:22px;margin:14px 0 4px;flex-wrap:wrap}
-.proj .lab{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);font-family:ui-monospace,monospace}
-.proj .num{font-size:20px;font-weight:700;margin-top:3px}
-.caveat{font-size:12.5px;color:var(--soft);margin-top:12px;padding-top:12px;border-top:1px solid var(--hair);max-width:72ch}
-.fresh{font-size:11px;color:var(--soft);margin-top:2px}
-.stale{color:var(--danger)}
-footer{font-size:11.5px;color:var(--soft);margin-top:22px;line-height:1.55}
-@media(max-width:640px){.tiles{grid-template-columns:repeat(2,1fr)}h1{font-size:22px}.verdict .word{font-size:32px}header{flex-direction:column;align-items:flex-start}.asof{text-align:left}
-body{padding:18px 14px 40px}
-.navbtn{width:40px;height:40px;font-size:21px}
-.dots{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px}
-.dots::-webkit-scrollbar{display:none}
-.dot{flex-shrink:0;padding:6px 12px}
-.chartbox,.emptybox{height:300px}
-.hero{padding:18px 18px}.panel{padding:18px 18px}}
-@media(pointer:coarse){.swipehint{display:flex}}
-@media(prefers-reduced-motion:reduce){#deck{transition:none!important}}
-</style></head><body><div class="wrap" id="swipezone">
-<header><div class="brand">
-<div class="eyebrow" id="eyebrow">Coronado · ddPCR daily</div>
-<div class="stationnav">
-<button class="navbtn" id="prev" aria-label="Previous station (south)" title="Previous station — south">&#8249;</button>
-<h1 id="stationName">loading…</h1>
-<button class="navbtn" id="next" aria-label="Next station (north)" title="Next station — north">&#8250;</button>
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Figtree,system-ui,sans-serif;font-size:16px;line-height:1.5;padding:22px 18px 44px}
+a{color:var(--terra-700)}a:hover{color:var(--terra-800)}
+.wrap{max-width:480px;margin:0 auto}
+.kicker{font-size:12px;font-weight:600;color:var(--sage-700);letter-spacing:.04em}
+h1{font-family:Caprasimo,serif;font-weight:400;font-size:34px;line-height:1.1;margin:9px 0 0}
+.intro{font-size:14px;line-height:1.55;color:var(--n700);margin:9px 0 0;max-width:36ch}
+.cards{display:flex;flex-direction:column;gap:13px;margin-top:18px}
+.card{background:#fff;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
+.cardtop{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.nametag{display:flex;align-items:baseline;gap:8px}
+.bname{font-weight:700;font-size:15px}
+.endtag{font-size:10.5px;font-weight:600;border-radius:999px;padding:2px 8px}
+.endtag.sage{color:var(--sage-700);background:var(--sage-200)}
+.endtag.terra{color:var(--terra-700);background:var(--terra-200)}
+.pct{font-size:13px;font-weight:600;white-space:nowrap}
+.track{height:16px;border-radius:999px;background:var(--n200);margin-top:8px;overflow:hidden}
+.fill{height:100%;border-radius:999px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;min-width:34px;transition:width .6s ease}
+.fill span{font-size:10px;font-weight:700;letter-spacing:.02em}
+.quip{font-size:12px;color:var(--n600);margin-top:6px}
+.chip{display:inline-flex;align-items:center;gap:8px;margin-top:18px;background:var(--sage-200);color:var(--sage-800);border-radius:999px;padding:8px 16px;font-size:13px;font-weight:600}
+.explain{margin-top:18px;background:var(--sage-100);border-radius:var(--radius);padding:18px}
+.explain .t{font-weight:700;font-size:13px;color:var(--sage-800)}
+.explain p{font-size:12.5px;line-height:1.55;margin:6px 0 0;color:var(--n800)}
+footer{margin-top:18px;font-size:11px;color:var(--n600);line-height:1.6;text-align:center}
+.stale{color:var(--terra-700);font-weight:600}
+@media(prefers-reduced-motion:reduce){.fill{transition:none}.sheet,.backdrop{transition:none!important}}
+.card{cursor:pointer;transition:transform .12s,box-shadow .12s;border:none;text-align:left;width:100%;font:inherit;color:inherit}
+.card:hover{box-shadow:0 3px 10px rgba(46,43,37,.16)}
+.card:active{transform:scale(.99)}
+.card:focus-visible{outline:2px solid var(--terra);outline-offset:2px}
+.backdrop{position:fixed;inset:0;background:rgba(32,30,29,.4);opacity:0;pointer-events:none;transition:opacity .2s;z-index:40}
+.backdrop.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-radius:var(--radius) var(--radius) 0 0;box-shadow:0 -8px 32px rgba(46,43,37,.25);transform:translateY(105%);transition:transform .28s cubic-bezier(.32,.72,.22,1);z-index:50;max-width:560px;margin:0 auto;padding:14px 20px calc(24px + env(safe-area-inset-bottom));max-height:88vh;overflow-y:auto}
+.sheet.on{transform:translateY(0)}
+.grab{width:44px;height:5px;border-radius:999px;background:var(--n200);margin:0 auto 12px}
+.sheethead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.sheettitle{font-family:Caprasimo,serif;font-size:24px;line-height:1.1}
+.sheetsub{font-size:12px;color:var(--n600);margin-top:3px}
+.xbtn{flex-shrink:0;width:34px;height:34px;border-radius:50%;border:none;background:#fff;box-shadow:var(--shadow);font-size:16px;line-height:1;cursor:pointer;color:var(--n700)}
+.xbtn:hover{background:var(--terra-200)}
+.xbtn:focus-visible{outline:2px solid var(--terra);outline-offset:2px}
+.stats{display:flex;gap:22px;margin-top:14px}
+.stats .lab{font-size:11px;font-weight:600;color:var(--n600)}
+.stats .num{font-weight:800;font-size:18px}
+.chartwrap{position:relative;height:260px;background:#fff;border-radius:20px;box-shadow:var(--shadow);padding:12px;margin-top:14px}
+.sheetleg{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;font-size:11.5px;color:var(--n600)}
+.sheetleg span{display:flex;align-items:center;gap:6px}.sw{width:16px;height:3px;border-radius:2px}
+.sheetnote{font-size:11.5px;color:var(--n600);margin-top:12px;line-height:1.55}
+</style></head><body><div class="wrap">
+<div class="kicker">CORONADO SWIM-O-METER</div>
+<h1 id="verdict">Checking the water&hellip;</h1>
+<p class="intro" id="intro">Fetching the latest county samples.</p>
+<div class="cards" id="cards"></div>
+<div class="chip" id="chip" style="display:none"></div>
+<div class="explain"><div class="t">How &ldquo;100%&rdquo; works</div>
+<p>100% = bacteria under the county&rsquo;s safety line of 1,413 copies/100&thinsp;ml. Today&rsquo;s sample <em>and</em> the 5-sample day average both need to clear it before we say yes.</p></div>
+<footer id="foot">County data, refreshed every 30 min</footer>
 </div>
-<div class="dots" id="dots"></div>
-<div class="swipehint"><span class="ar">&#8249;</span>Swipe to change station<span class="ar">&#8250;</span></div>
+<div class="backdrop" id="backdrop"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+<div class="grab"></div>
+<div class="sheethead"><div><div class="sheettitle" id="sheetTitle"></div><div class="sheetsub" id="sheetSub"></div></div>
+<button class="xbtn" id="sheetClose" aria-label="Close">&#10005;</button></div>
+<div class="stats"><div><div class="lab">Latest</div><div class="num" id="shL"></div></div>
+<div><div class="lab">5-sample avg</div><div class="num" id="shG"></div></div>
+<div><div class="lab">Trend</div><div class="num" id="shT"></div></div></div>
+<div class="chartwrap"><canvas id="sheetChart"></canvas></div>
+<div class="sheetleg"><span><span class="sw" style="background:#645c50"></span>Daily reading</span><span><span class="sw" style="background:#c67139"></span>Swim line (1,413)</span><span><span class="sw" id="projSw" style="background:#728157"></span>Next 7 days (guess)</span></div>
+<div class="sheetnote">The dotted guess is a simple trend fit &mdash; direction only. Spikes here come from sewage flows that arrive with little warning, so a clean forecast can flip in a day.</div>
 </div>
-<div class="asof"><div class="eyebrow">Updated</div><div class="mono" id="gen">loading…</div>
-<div class="fresh" id="fresh"></div><div class="eyebrow" id="cnt"></div></div></header>
-<div id="deck">
-<div class="hero" id="hero"><div class="verdict"><span class="word" id="vw">&mdash;</span>
-<span class="mult" id="vm"></span></div><div class="reason" id="vr">Loading latest readings…</div></div>
-<div class="tiles">
-<div class="tile"><div class="lab">Latest reading</div><div class="val" id="tL">&mdash;</div><div class="sub" id="tLd"></div></div>
-<div class="tile"><div class="lab">5-sample geomean</div><div class="val" id="tG">&mdash;</div><div class="sub">rolling avg</div></div>
-<div class="tile"><div class="lab">7-day trend</div><div class="val" id="tT">&mdash;</div><div class="sub" id="tTd"></div></div>
-<div class="tile"><div class="lab">Days below line</div><div class="val" id="tS">&mdash;</div><div class="sub">consecutive</div></div></div>
-<div class="panel"><h2>Daily readings &amp; 7-day projection</h2>
-<div class="chartbox" id="chartbox"><canvas id="chart"></canvas></div>
-<div class="emptybox" id="emptybox" style="display:none"><div class="big" id="emptyBig">No readings yet</div>
-<div id="emptySub">This station will populate on the next county data pull.</div></div>
-<div class="legend" id="legend"><span><span class="sw" style="background:var(--water)"></span>Reading</span>
-<span><span class="sw" style="background:var(--danger)"></span>Swim line (1,413)</span>
-<span><span class="sw" id="psw" style="background:var(--caution)"></span>Projection</span>
-<span><span class="sw" style="background:var(--event);border:1px solid var(--event-line)"></span>Contamination event</span></div></div>
-<div class="panel" id="callPanel"><h2>Is there a swim window this week?</h2>
-<div class="call" id="call"></div>
-<div class="proj"><div><div class="lab">Projected +3d</div><div class="num" id="p3"></div></div>
-<div><div class="lab">Projected +7d</div><div class="num" id="p7"></div></div>
-<div><div class="lab">Crosses line</div><div class="num" id="pc"></div></div></div>
-<div class="caveat">Projection is a log-linear fit on recent readings — direction only. These stations' spikes come from transboundary sewage flows that arrive with little warning, so a clean forecast can be overturned by one surge. An advisory lifts only when both the latest sample and the 5-sample geomean fall below the line.</div></div>
-</div>
-<footer>Source: San Diego County DEHQ SamplesReport, auto-fetched every few hours. Standard: 1,413 copies/100ml ddPCR. Live: sdbeachinfo.com · Swipe left or right — or use the ‹ › arrows and ← → keys — to move between stations, south to north. This page refreshes itself; pull it up on any device.</footer>
-</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
-const EVENT_CUT=20000;
-let chartInstance=null;
-const STATE={stations:[],idx:0,threshold:1413,updated:null};
-function fmt(n){return Math.round(n).toLocaleString('en-US');}
-function geomean(a){return Math.exp(a.reduce((s,x)=>s+Math.log(x),0)/a.length);}
-function short(iso){const p=iso.split('-');return (+p[1])+'/'+(+p[2]);}
-function addDays(iso,k){const d=new Date(iso+'T12:00:00');d.setDate(d.getDate()+k);return d.toISOString().slice(0,10);}
-function fit(v,n){const p=v.slice(-n),k=p.length,xs=p.map((_,i)=>i),ys=p.map(x=>Math.log(x));
+const LOCAL={northbeach:{name:'Dog Beach',tag:'north end',order:0},lifeguard:{name:'Hotel Del',tag:'middle',order:1},avenida:{name:'The Shores',tag:'south end',order:2}};
+let DATA=null,chartInst=null;
+const $=id=>document.getElementById(id);
+const fmt=n=>Math.round(n).toLocaleString('en-US');
+const geomean=a=>Math.exp(a.reduce((s,x)=>s+Math.log(x),0)/a.length);
+function fit(v,n){const p=v.slice(-n),k=p.length;if(k<2)return{b:0,last:Math.log(p[0]||1)};
+const xs=p.map((_,i)=>i),ys=p.map(x=>Math.log(x));
 const mx=xs.reduce((a,b)=>a+b,0)/k,my=ys.reduce((a,b)=>a+b,0)/k;let nu=0,de=0;
-for(let i=0;i<k;i++){nu+=(xs[i]-mx)*(ys[i]-my);de+=(xs[i]-mx)**2;}
-const b=de?nu/de:0;return {b,fitLast:my+b*(xs[k-1]-mx)};}
-function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();}
+for(let i=0;i<k;i++){nu+=(xs[i]-mx)*(ys[i]-my);de+=(xs[i]-mx)**2}
+const b=de?nu/de:0;return{b,last:my+b*(xs[k-1]-mx)}}
 
-function stamp(iso){
-  if(!iso)return;
-  const d=new Date(iso);
-  document.getElementById('gen').textContent=d.toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
-  const hrs=(Date.now()-d.getTime())/3.6e6;
-  const rel = hrs<1 ? 'just now' : hrs<48 ? Math.round(hrs)+'h ago' : Math.round(hrs/24)+'d ago';
-  const el=document.getElementById('fresh');
-  el.textContent=rel+' · your local time';
-  el.className='fresh'+(hrs>36?' stale':'');
+function analyze(st,T){
+  const vals=(st.readings||[]).map(r=>r[1]);
+  if(!vals.length)return{empty:true};
+  const latest=vals[vals.length-1],gm=geomean(vals.slice(-Math.min(5,vals.length)));
+  const open=latest<=T&&gm<=T;
+  const pct=Math.min(100,Math.round(T/latest*100));
+  const f=fit(vals,Math.min(10,vals.length)),wk=Math.exp(f.b*7);
+  const falling=wk<0.95,rising=wk>1.05;
+  let days=null;
+  if(!open&&f.b<0){const d=(Math.log(T)-f.last)/f.b;if(d>0&&d<=21)days=Math.max(1,Math.round(d))}
+  return{latest,gm,open,pct,falling,rising,days,date:st.readings[st.readings.length-1][0]};
 }
-
-function stationLabel(st){
-  const code=st.station_id?st.station_id+' · ':'';
-  return code+'Coronado · ddPCR daily';
+function quip(a){
+  if(a.empty)return'No readings yet — fills in automatically on the next county pull.';
+  if(a.open)return'In! The water\u2019s minding its manners.';
+  if(a.pct>=85)return a.falling?'Sooo close. Maybe tomorrow!':'So close — waiting on a clean sample.';
+  if(a.pct>=70)return a.falling?'Not yet, but improving every day.':'Not yet — holding steady.';
+  return a.falling?'Still grumpy — give it a few days.':a.rising?'Grumpy and getting grumpier. Skip it.':'Still grumpy — give it a few days.';
 }
-
-function showEmpty(st){
-  if(chartInstance){chartInstance.destroy();chartInstance=null;}
-  document.getElementById('chartbox').style.display='none';
-  document.getElementById('legend').style.display='none';
-  document.getElementById('emptybox').style.display='flex';
-  document.getElementById('emptyBig').textContent='No county samples yet for '+st.name;
-  document.getElementById('emptySub').textContent=st.site_id?
-    'This station will populate on the next data pull.':
-    'Awaiting the county SiteId — populates automatically once resolved.';
-  document.getElementById('hero').className='hero none';
-  document.getElementById('vw').textContent='NO DATA';
-  document.getElementById('vm').textContent='';
-  document.getElementById('vm').style.display='none';
-  document.getElementById('vr').textContent='No readings recorded yet for this station. The dashboard fills it in automatically on the next scheduled county pull.';
-  ['tL','tG','tT','tS'].forEach(id=>{const e=document.getElementById(id);e.textContent='—';e.className='val';});
-  document.getElementById('tLd').textContent='';document.getElementById('tTd').textContent='';
-  document.getElementById('cnt').textContent='0 samples';
-  document.getElementById('call').textContent='No swim call yet — this station has no recorded samples.';
-  ['p3','p7','pc'].forEach(id=>document.getElementById(id).textContent='—');
+function barColor(a){
+  if(a.open)return['var(--sage-600)','#fff'];
+  if(a.pct>=85)return['var(--sage-500)','#fff'];
+  if(a.pct>=70)return['var(--terra-400)','var(--terra-800)'];
+  return['var(--terra)','#fff'];
 }
-
-function render(st){
-  const T=STATE.threshold;
-  const SAMPLES=st.readings||[];
-  if(!SAMPLES.length){showEmpty(st);return;}
-  document.getElementById('chartbox').style.display='';
-  document.getElementById('legend').style.display='';
-  document.getElementById('emptybox').style.display='none';
-  const dates=SAMPLES.map(s=>s[0]),vals=SAMPLES.map(s=>s[1]),n=vals.length;
-  const latest=vals[n-1],gm5=geomean(vals.slice(-Math.min(5,n)));
-  document.getElementById('cnt').textContent=n+' samples';
-  const lOK=latest<=T,gOK=gm5<=T;let cls='',word="DON'T SWIM";
-  if(lOK&&gOK){cls='open';word='SWIM';}else if(lOK&&gm5<=2*T){cls='caution';word='CAUTION';}
-  document.getElementById('hero').className='hero'+(cls?' '+cls:'');
-  document.getElementById('vw').textContent=word;const mult=latest/T;
-  document.getElementById('vm').style.display='';
-  document.getElementById('vm').textContent=mult>=1?mult.toFixed(1)+'× over the line':(T/latest).toFixed(1)+'× under';
-  const f0=fit(vals,Math.min(10,n)),wk=Math.exp(f0.b*7);
-  const dir=wk>1.05?'rising':wk<0.95?'improving':'flat';let reason;
-  if(word==='SWIM')reason='Latest reading and 5-sample average are both below the swim line. Within standards right now; trend '+dir+'.';
-  else if(word==='CAUTION')reason='Single reading is under the line but the 5-sample average ('+fmt(gm5)+') has not settled below it. Borderline — not a posted-clear day.';
-  else reason='Bacteria are '+mult.toFixed(1)+'× the safe limit and the recent trend is '+dir+(wk>1?' ('+wk.toFixed(1)+'× per week)':'')+'. Advisory-posted condition — avoid water contact.';
-  document.getElementById('vr').textContent=reason;
-  let e=document.getElementById('tL');e.textContent=fmt(latest);e.className='val '+(lOK?'ok':'bad');
-  document.getElementById('tLd').textContent=short(dates[n-1]);
-  e=document.getElementById('tG');e.textContent=fmt(gm5);e.className='val '+(gOK?'ok':'bad');
-  e=document.getElementById('tT');e.textContent=(wk>=1?wk.toFixed(1):wk.toFixed(2))+'×';e.className='val '+(wk>1.05?'bad':wk<0.95?'ok':'warn');
-  document.getElementById('tTd').textContent=dir;
-  let streak=0;for(let i=n-1;i>=0;i--){if(vals[i]<=T)streak++;else break;}
-  e=document.getElementById('tS');e.textContent=streak;e.className='val '+(streak>=3?'ok':streak>0?'warn':'bad');
-  const pb=f0.b,fitLast=f0.fitLast,proj=k=>Math.exp(fitLast+pb*k);
-  document.getElementById('p3').textContent=fmt(proj(3));document.getElementById('p7').textContent=fmt(proj(7));
-  let cross='—';
-  if(latest<=T)cross='below now';
-  else if(pb<0){const d=(Math.log(T)-fitLast)/pb;cross=d<=14?'~'+Math.max(1,Math.round(d))+' days':'>14 days';}
-  else cross='not on trend';
-  document.getElementById('pc').textContent=cross;let call;
-  if(lOK&&gOK)call='Swimmable now. Watch for a fresh spike — this station can flip within a day.';
-  else if(pb<0){const d=(Math.log(T)-fitLast)/pb;
-  call=d<=7?'Improving. A single reading could dip below the line in about '+Math.max(1,Math.round(d))+' days — a brief mid-week window may open, but the 5-sample average would still need to follow.':'Improving slowly. Readings stay above the line through the coming week (crosses in ~'+Math.round(d)+' days). No reliable swim window in the next 7 days.';}
-  else call='Flat-to-rising. No swim window in the coming week on the current trend.';
-  document.getElementById('call').textContent=call;
-  const fut=[];for(let k=1;k<=7;k++)fut.push(addDays(dates[n-1],k));
-  const labels=dates.map(short).concat(fut.map(short));
-  const rd=vals.concat(Array(7).fill(null)),th=Array(n+7).fill(T);
-  const pd=Array(n+7).fill(null);pd[n-1]=vals[n-1];for(let k=1;k<=7;k++)pd[n-1+k]=Math.exp(fitLast+pb*k);
-  const pcol=(latest<=T||wk<0.9)?css('--safe'):wk<1?css('--caution'):css('--danger');
-  document.getElementById('psw').style.background=pcol;
-  const bands=[];let bs=-1;for(let i=0;i<n;i++){if(vals[i]>EVENT_CUT){if(bs<0)bs=i;}else if(bs>=0){bands.push([bs,i-1]);bs=-1;}}if(bs>=0)bands.push([bs,n-1]);
-  const ep={id:'ep',beforeDatasetsDraw(c){const a=c.chartArea,x=c.scales.x,ctx=c.ctx;ctx.save();
-  bands.forEach(function(bd){const x1=x.getPixelForValue(Math.max(0,bd[0]-.5)),x2=x.getPixelForValue(bd[1]+.5);
-  ctx.fillStyle=css('--event');ctx.fillRect(x1,a.top,x2-x1,a.bottom-a.top);
-  ctx.strokeStyle=css('--event-line');ctx.setLineDash([4,3]);ctx.strokeRect(x1,a.top,x2-x1,a.bottom-a.top);ctx.setLineDash([]);});
-  if(bands.length){let bg=bands.reduce(function(p,q){return (q[1]-q[0])>(p[1]-p[0])?q:p;});let pk=0,pi=bg[0];
-  for(let i=bg[0];i<=bg[1];i++)if(vals[i]>pk){pk=vals[i];pi=i;}
-  const cx=x.getPixelForValue((bg[0]+bg[1])/2);ctx.fillStyle=css('--danger');ctx.textAlign='center';
-  ctx.font='600 11px sans-serif';ctx.fillText('Contamination event',cx,a.top+14);
-  ctx.font='500 10px ui-monospace,monospace';ctx.fillText('peak '+fmt(pk)+' · '+short(dates[pi]),cx,a.top+28);}ctx.restore();}};
-  if(chartInstance)chartInstance.destroy();
-  chartInstance=new Chart(document.getElementById('chart'),{type:'line',
-  data:{labels:labels,datasets:[
-  {data:rd,borderColor:css('--water'),backgroundColor:'rgba(47,124,201,.07)',borderWidth:2,pointRadius:2,pointBackgroundColor:css('--water'),fill:true,tension:.2},
-  {data:pd,borderColor:pcol,borderWidth:2,borderDash:[5,4],pointRadius:0,fill:false,tension:.2,spanGaps:true},
-  {data:th,borderColor:css('--danger'),borderWidth:2,borderDash:[6,4],pointRadius:0,fill:false}]},
-  options:{responsive:true,maintainAspectRatio:false,animation:{duration:400},
-  plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return c.raw==null?null:fmt(c.raw)+' copies/100ml';}}}},
-  scales:{y:{type:'logarithmic',min:400,ticks:{color:css('--soft'),font:{size:10},callback:function(v){return [500,T,5000,50000,200000].indexOf(v)>=0?fmt(v):null;}},grid:{color:'#e3e9eb'}},
-  x:{ticks:{color:css('--soft'),font:{size:9},autoSkip:true,maxTicksLimit:16},grid:{display:false}}}},
-  plugins:[ep]});
+function render(j){
+  DATA=j;
+  const T=j.threshold||1413;
+  const sts=(j.stations||[]).slice().sort((x,y)=>(LOCAL[x.key]?.order??9)-(LOCAL[y.key]?.order??9));
+  const infos=sts.map(st=>({st,a:analyze(st,T)}));
+  const withData=infos.filter(i=>!i.a.empty);
+  const openCount=withData.filter(i=>i.a.open).length;
+  const best=withData.slice().sort((x,y)=>y.a.pct-x.a.pct)[0];
+  const anyFalling=withData.some(i=>i.a.falling);
+  let v,intro;
+  if(!withData.length){v='Hmm — no data.';intro='No county samples loaded yet. This page fills itself in automatically.'}
+  else if(openCount===withData.length){v='Yes — beach day!';intro='Every beach is under the county\u2019s safety line right now. Go get salty.'}
+  else if(openCount>0){v='Sort of — pick your beach.';intro='Some beaches are under the line, some aren\u2019t. Check your spot below, north to south:'}
+  else{v=best.a.pct>=85?'Not yet — but close.':anyFalling?'Not yet — but improving.':'Nope, not today.';
+  intro='Every beach is under a bacteria advisory today. Here\u2019s how close each one is to being swimmable, north to south:'}
+  $('verdict').textContent=v;$('intro').textContent=intro;
+  $('cards').innerHTML=infos.map(({st,a})=>{
+    const L=LOCAL[st.key]||{name:st.name,tag:''};
+    const tagCls=(a.open||a.pct>=85)?'sage':'terra';
+    const pctTxt=a.empty?'':(a.open?'100% — open!':a.pct+'% there');
+    const pctColor=(a.open||a.pct>=85)?'var(--sage-700)':'var(--terra-700)';
+    const [bc,tc]=a.empty?['transparent','transparent']:barColor(a);
+    const bar=a.empty?'<div class="track"></div>':
+      '<div class="track"><div class="fill" style="width:'+(a.open?100:a.pct)+'%;background:'+bc+'"><span style="color:'+tc+'">'+fmt(a.latest)+'</span></div></div>';
+    return '<button class="card" data-key="'+st.key+'" aria-haspopup="dialog"><div class="cardtop"><div class="nametag"><div class="bname">'+L.name+'</div>'+
+      (L.tag?'<div class="endtag '+tagCls+'">'+L.tag+'</div>':'')+
+      '</div><div class="pct" style="color:'+pctColor+'">'+pctTxt+'</div></div>'+bar+
+      '<div class="quip">'+quip(a)+' <span style="color:var(--n600);font-weight:600">Tap for the chart &rsaquo;</span></div></button>';
+  }).join('');
+  document.querySelectorAll('.card[data-key]').forEach(el=>{el.onclick=()=>openSheet(el.dataset.key)});
+  const chip=$('chip');
+  if(openCount>0){chip.textContent=openCount===withData.length?'Swimmable now — spikes can arrive fast, we\u2019ll keep watch':'Swimmable now at '+openCount+' of '+withData.length+' beaches';chip.style.display='inline-flex'}
+  else if(best&&best.a.days){chip.textContent='On this pace: swimmable in ~'+best.a.days+' day'+(best.a.days>1?'s':'')+', '+(LOCAL[best.st.key]?.name||best.st.name)+' first';chip.style.display='inline-flex'}
+  else if(best){chip.textContent=anyFalling?'Improving, but no clear swim window this week':'No swim window likely this week';chip.style.display='inline-flex'}
+  else chip.style.display='none';
+  if(j.updated_utc){const d=new Date(j.updated_utc),hrs=(Date.now()-d.getTime())/3.6e6;
+    const rel=hrs<1?'just now':hrs<48?Math.round(hrs)+' h ago':Math.round(hrs/24)+' d ago';
+    $('foot').innerHTML='County data, refreshed every 30 min · updated '+d.toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' ('+(hrs>36?'<span class="stale">'+rel+' — data may be stale</span>':rel)+')';}
 }
-
-function buildDots(){
-  const wrap=document.getElementById('dots');wrap.innerHTML='';
-  STATE.stations.forEach(function(st,i){
-    const b=document.createElement('button');
-    b.className='dot'+(i===STATE.idx?' on':'');
-    b.innerHTML='<span class="n">'+(i+1)+'</span>'+(st.short||st.name);
-    b.onclick=function(){show(i,i>STATE.idx?1:-1);};
-    wrap.appendChild(b);
-  });
-}
-
-const REDUCE=!!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-let animating=false;
-
-function apply(i){
-  const n=STATE.stations.length;if(!n)return;
-  STATE.idx=(i%n+n)%n;
-  const st=STATE.stations[STATE.idx];
-  document.getElementById('stationName').textContent=st.name;
-  document.getElementById('eyebrow').textContent=stationLabel(st);
-  document.querySelectorAll('.dot').forEach((d,j)=>d.classList.toggle('on',j===STATE.idx));
-  const on=document.querySelector('.dot.on');
-  if(on&&on.scrollIntoView)on.scrollIntoView({block:'nearest',inline:'center',behavior:REDUCE?'auto':'smooth'});
-  stamp(STATE.updated);
-  render(st);
-}
-
-// dir: +1 = advancing north (content exits left), -1 = south. Omit for no animation.
-function show(i,dir){
-  const n=STATE.stations.length;if(!n)return;
-  const target=(i%n+n)%n;
-  if(!dir||REDUCE||animating||target===STATE.idx){apply(target);return;}
-  const d=document.getElementById('deck');
-  animating=true;
-  d.style.transition='transform .12s ease-in,opacity .12s ease-in';
-  d.style.transform='translateX('+(-dir*26)+'px)';
-  d.style.opacity='0';
-  setTimeout(function(){
-    apply(target);
-    d.style.transition='none';
-    d.style.transform='translateX('+(dir*26)+'px)';
-    void d.offsetWidth;                                  // force reflow before easing back
-    d.style.transition='transform .2s cubic-bezier(.22,.61,.36,1),opacity .2s ease-out';
-    d.style.transform='translateX(0)';
-    d.style.opacity='1';
-    setTimeout(function(){animating=false;d.style.transition='';},220);
-  },125);
-}
-
 async function load(){
   try{
     const r=await fetch('data/stations.json?t='+Date.now(),{cache:'no-store'});
     if(!r.ok)throw new Error('HTTP '+r.status);
-    const j=await r.json();
-    const stations=(j.stations||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0));
-    if(!stations.length)throw new Error('no stations');
-    STATE.stations=stations;
-    STATE.threshold=j.threshold||1413;
-    STATE.updated=j.updated_utc;
-    if(STATE.idx>=stations.length)STATE.idx=0;
-    buildDots();
-    show(STATE.idx);
-  }catch(err){
-    document.getElementById('vr').textContent='Could not load data ('+err.message+'). Will retry automatically.';
+    render(await r.json());
+  }catch(e){
+    $('verdict').textContent='Hmm — can\u2019t reach the data.';
+    $('intro').textContent='('+e.message+') Retrying automatically — the ocean isn\u2019t going anywhere.';
   }
 }
-
-document.getElementById('prev').onclick=function(){show(STATE.idx-1,-1);};
-document.getElementById('next').onclick=function(){show(STATE.idx+1,1);};
-document.addEventListener('keydown',function(e){
-  if(e.key==='ArrowLeft')show(STATE.idx-1,-1);
-  else if(e.key==='ArrowRight')show(STATE.idx+1,1);
-});
-
-// Touch swipe: drag left = next station (north), drag right = previous (south).
-// Axis is locked on the first few pixels so vertical page scrolling is never hijacked.
-(function(){
-  const zone=document.getElementById('swipezone');
-  if(!zone||!('ontouchstart' in window))return;
-  let x0=0,y0=0,t0=0,lock=null,live=false;
-  zone.addEventListener('touchstart',function(e){
-    // ignore multi-touch (pinch-zoom) and drags that start on the scrollable dot strip
-    if(e.touches.length!==1||(e.target.closest&&e.target.closest('.dots'))){live=false;return;}
-    const t=e.touches[0];x0=t.clientX;y0=t.clientY;t0=Date.now();lock=null;live=true;
-  },{passive:true});
-  zone.addEventListener('touchmove',function(e){
-    if(!live)return;
-    if(e.touches.length!==1){live=false;return;}
-    if(lock)return;
-    const t=e.touches[0],dx=Math.abs(t.clientX-x0),dy=Math.abs(t.clientY-y0);
-    if(dx<8&&dy<8)return;
-    lock=dx>dy*1.3?'h':'v';
-  },{passive:true});
-  zone.addEventListener('touchend',function(e){
-    if(!live)return;live=false;
-    if(lock!=='h')return;
-    const t=e.changedTouches[0],dx=t.clientX-x0,dy=t.clientY-y0,dt=Date.now()-t0;
-    if(Math.abs(dy)>90)return;                                  // drifted too far vertically
-    if(Math.abs(dx)<60&&!(Math.abs(dx)>28&&dt<300))return;      // needs distance or a flick
-    if(dx<0)show(STATE.idx+1,1);else show(STATE.idx-1,-1);
-  },{passive:true});
-  zone.addEventListener('touchcancel',function(){live=false;},{passive:true});
-})();
 load();
-setInterval(load, 30*60*1000);                 // re-pull every 30 min
-document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) load(); });
+setInterval(load,30*60*1000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
+
+const shortD=iso=>{const p=iso.split('-');return (+p[1])+'/'+(+p[2])};
+function addDays(iso,k){const d=new Date(iso+'T12:00:00');d.setDate(d.getDate()+k);return d.toISOString().slice(0,10)}
+function openSheet(key){
+  if(!DATA)return;
+  const st=(DATA.stations||[]).find(s=>s.key===key);
+  if(!st||!(st.readings||[]).length)return;
+  const T=DATA.threshold||1413,L=LOCAL[key]||{name:st.name,tag:''};
+  const a=analyze(st,T);
+  document.getElementById('sheetTitle').textContent=L.name;
+  document.getElementById('sheetSub').textContent='county station: '+st.name+(st.station_id?' ('+st.station_id+')':'')+(L.tag?' \u00b7 '+L.tag:'');
+  document.getElementById('shL').textContent=fmt(a.latest);
+  document.getElementById('shL').style.color=a.latest<=T?'var(--sage-700)':'var(--terra-700)';
+  document.getElementById('shG').textContent=fmt(a.gm);
+  document.getElementById('shG').style.color=a.gm<=T?'var(--sage-700)':'var(--terra-700)';
+  document.getElementById('shT').textContent=a.falling?'improving':a.rising?'rising':'flat';
+  document.getElementById('shT').style.color=a.falling?'var(--sage-700)':a.rising?'var(--terra-700)':'var(--n700)';
+  const R=st.readings.slice(-45),dates=R.map(r=>r[0]),vals=R.map(r=>r[1]),n=vals.length;
+  const f=fit(st.readings.map(r=>r[1]),Math.min(10,st.readings.length));
+  const fut=[];for(let k=1;k<=7;k++)fut.push(addDays(dates[n-1],k));
+  const labels=dates.map(shortD).concat(fut.map(shortD));
+  const rd=vals.concat(Array(7).fill(null)),th=Array(n+7).fill(T);
+  const pd=Array(n+7).fill(null);pd[n-1]=vals[n-1];for(let k=1;k<=7;k++)pd[n-1+k]=Math.exp(f.last+f.b*k);
+  const pcol=a.falling||a.open?'#728157':'#f6a06b';
+  document.getElementById('projSw').style.background=pcol;
+  const wrap=document.querySelector('.chartwrap');
+  if(typeof Chart==='undefined'){wrap.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--n600);font-size:13px;text-align:center;padding:0 20px">Chart couldn\u2019t load (offline?) \u2014 the numbers above are still live.</div>';}
+  else{
+  if(!document.getElementById('sheetChart'))wrap.innerHTML='<canvas id="sheetChart"></canvas>';
+  if(chartInst)chartInst.destroy();
+  chartInst=new Chart(document.getElementById('sheetChart'),{type:'line',
+  data:{labels,datasets:[
+  {data:rd,borderColor:'#645c50',backgroundColor:'rgba(100,92,80,.08)',borderWidth:2,pointRadius:2,pointBackgroundColor:'#645c50',fill:true,tension:.3},
+  {data:pd,borderColor:pcol,borderWidth:2,borderDash:[5,4],pointRadius:0,fill:false,tension:.3,spanGaps:true},
+  {data:th,borderColor:'#c67139',borderWidth:2,borderDash:[6,4],pointRadius:0,fill:false}]},
+  options:{responsive:true,maintainAspectRatio:false,animation:{duration:300},
+  plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.raw==null?null:fmt(c.raw)+' copies/100ml'}}},
+  scales:{y:{type:'logarithmic',min:400,ticks:{color:'#82796a',font:{size:10},callback:v=>[500,T,5000,50000,200000].indexOf(v)>=0?fmt(v):null},grid:{color:'#eee7db'}},
+  x:{ticks:{color:'#82796a',font:{size:9},autoSkip:true,maxTicksLimit:12},grid:{display:false}}}}});
+  }
+  document.getElementById('backdrop').classList.add('on');
+  document.getElementById('sheet').classList.add('on');
+  document.getElementById('sheetClose').focus();
+}
+function closeSheet(){
+  document.getElementById('backdrop').classList.remove('on');
+  document.getElementById('sheet').classList.remove('on');
+}
+document.getElementById('backdrop').onclick=closeSheet;
+document.getElementById('sheetClose').onclick=closeSheet;
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
 </script></body></html>
