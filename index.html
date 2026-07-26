@@ -38,6 +38,7 @@
 --n200:#eee7db;--n600:#82796a;--n700:#645c50;--n800:#474238;
 --terra:#c67139;--terra-200:#ffe1d0;--terra-400:#f6a06b;--terra-700:#8c491a;--terra-800:#643312;
 --sage-100:#f0fae1;--sage-200:#e1eecc;--sage-500:#8fa073;--sage-600:#728157;--sage-700:#56633f;--sage-800:#3d472b;
+--ochre:#dba63c;--ochre-800:#5e4310;
 --radius:28px;--shadow:0 1px 2px rgba(46,43,37,.14);
 }
 *{box-sizing:border-box}
@@ -109,7 +110,7 @@ footer{margin-top:18px;font-size:11px;color:var(--n600);line-height:1.6;text-ali
 <div><div class="lab">Trend</div><div class="num" id="shT"></div></div></div>
 <div class="chartwrap"><canvas id="sheetChart"></canvas></div>
 <div class="sheetleg"><span><span class="sw" style="background:#645c50"></span>Daily reading</span><span><span class="sw" style="background:#c67139"></span>Swim line (1,413)</span><span><span class="sw" id="projSw" style="background:#728157"></span>Next 7 days (guess)</span></div>
-<div class="sheetnote">The dotted guess is a simple trend fit &mdash; direction only. Spikes here come from sewage flows that arrive with little warning, so a clean forecast can flip in a day.</div>
+<div class="sheetnote">The dotted guess is a simple trend fit, direction only. Spikes here come from sewage flows that arrive with little warning, so a clean forecast can flip in a day.</div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
@@ -138,15 +139,15 @@ function analyze(st,T){
   return{latest,gm,open,pct,falling,rising,days,date:st.readings[st.readings.length-1][0]};
 }
 function quip(a){
-  if(a.empty)return'No readings yet — fills in automatically on the next county pull.';
+  if(a.empty)return'No readings yet. Fills in automatically on the next county pull.';
   if(a.open)return'In! The water\u2019s minding its manners.';
-  if(a.pct>=85)return a.falling?'Sooo close. Maybe tomorrow!':'So close — waiting on a clean sample.';
-  if(a.pct>=70)return a.falling?'Not yet, but improving every day.':'Not yet — holding steady.';
-  return a.falling?'Still grumpy — give it a few days.':a.rising?'Grumpy and getting grumpier. Skip it.':'Still grumpy — give it a few days.';
+  if(a.pct>=85)return a.falling?'Sooo close. Maybe tomorrow!':'So close. Waiting on a clean sample.';
+  if(a.pct>=70)return a.falling?'Not yet, but improving every day.':'Not yet, holding steady.';
+  return a.falling?'Still grumpy. Give it a few days.':a.rising?'Grumpy and getting grumpier. Skip it.':'Still grumpy. Give it a few days.';
 }
 function barColor(a){
   if(a.open)return['var(--sage-600)','#fff'];
-  if(a.pct>=85)return['var(--sage-500)','#fff'];
+  if(a.pct>=85)return['var(--ochre)','var(--ochre-800)'];
   if(a.pct>=70)return['var(--terra-400)','var(--terra-800)'];
   return['var(--terra)','#fff'];
 }
@@ -159,17 +160,26 @@ function render(j){
   const openCount=withData.filter(i=>i.a.open).length;
   const best=withData.slice().sort((x,y)=>y.a.pct-x.a.pct)[0];
   const anyFalling=withData.some(i=>i.a.falling);
+  const nameOf=i=>LOCAL[i.st.key]?.name||esc(i.st.name);
+  const listNames=xs=>xs.length<2?xs.join(''):xs.length===2?xs[0]+' and '+xs[1]:xs.slice(0,-1).join(', ')+', and '+xs[xs.length-1];
+  const openList=withData.filter(i=>i.a.open);
+  const greenList=withData.filter(i=>!i.a.open&&i.a.pct>=85);
   let v,intro;
-  if(!withData.length){v='Hmm — no data.';intro='No county samples loaded yet. This page fills itself in automatically.'}
-  else if(openCount===withData.length){v='Yes — beach day!';intro='Every beach is under the county\u2019s safety line right now. Go get salty.'}
-  else if(openCount>0){v='Sort of — pick your beach.';intro='Some beaches are under the line, some aren\u2019t. Check your spot below, north to south:'}
-  else{v=best.a.pct>=85?'Not yet — but close.':anyFalling?'Not yet — but improving.':'Nope, not today.';
+  if(!withData.length){v='Hmm, no data.';intro='No county samples loaded yet. This page fills itself in automatically.'}
+  else if(openList.length===withData.length){v='Time to swim!';intro='Every beach is under the county\u2019s safety line right now. Go get salty.'}
+  else if(openList.length){
+    v=openList.length===1?'Time to swim! Stick to '+nameOf(openList[0])+' for now.':'Time to swim! Start at '+listNames(openList.map(nameOf))+'.';
+    intro='';
+    if(greenList.length)intro+=listNames(greenList.map(nameOf))+(greenList.length>1?' are':' is')+' close behind.';
+    if(withData.length-openList.length-greenList.length>0)intro+=(intro?' ':'')+'Everywhere else is still under an advisory.';
+  }
+  else{v=best.a.pct>=85?(best.a.falling?'So close, and still improving.':'Not quite, but close.'):anyFalling?'Not yet, but we\u2019re trending in the right direction.':'Nope, not today.';
   intro='Every beach is under a bacteria advisory today. Here\u2019s how close each one is to being swimmable, north to south:'}
   $('verdict').textContent=v;$('intro').textContent=intro;
   $('cards').innerHTML=infos.map(({st,a})=>{
     const L=LOCAL[st.key]||{name:esc(st.name),tag:''};
     const tagCls=(a.open||a.pct>=85)?'sage':'terra';
-    const pctTxt=a.empty?'':(a.open?'100% — open!':a.pct+'% there');
+    const pctTxt=a.empty?'':(a.open?'100%, open!':a.pct+'% there');
     const pctColor=(a.open||a.pct>=85)?'var(--sage-700)':'var(--terra-700)';
     const [bc,tc]=a.empty?['transparent','transparent']:barColor(a);
     const bar=a.empty?'<div class="track"></div>':
@@ -181,13 +191,13 @@ function render(j){
   }).join('');
   document.querySelectorAll('.card[data-key]').forEach(el=>{el.onclick=()=>openSheet(el.dataset.key)});
   const chip=$('chip');
-  if(openCount>0){chip.textContent=openCount===withData.length?'Swimmable now — spikes can arrive fast, we\u2019ll keep watch':'Swimmable now at '+openCount+' of '+withData.length+' beaches';chip.style.display='inline-flex'}
+  if(openCount>0){chip.textContent=openCount===withData.length?'Swimmable now. Spikes can arrive fast, so we\u2019ll keep watch':'Swimmable now at '+openCount+' of '+withData.length+' beaches';chip.style.display='inline-flex'}
   else if(best&&best.a.days){chip.textContent='On this pace: swimmable in ~'+best.a.days+' day'+(best.a.days>1?'s':'')+', '+(LOCAL[best.st.key]?.name||best.st.name)+' first';chip.style.display='inline-flex'}
   else if(best){chip.textContent=anyFalling?'Improving, but no clear swim window this week':'No swim window likely this week';chip.style.display='inline-flex'}
   else chip.style.display='none';
   if(j.updated_utc){const d=new Date(j.updated_utc),hrs=(Date.now()-d.getTime())/3.6e6;
     const rel=hrs<1?'just now':hrs<48?Math.round(hrs)+' h ago':Math.round(hrs/24)+' d ago';
-    $('foot').innerHTML='County data, checked every 30 min · updated '+d.toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' ('+(hrs>36?'<span class="stale">'+rel+' — data may be stale</span>':rel)+')';}
+    $('foot').innerHTML='County data, checked every 30 min · updated '+d.toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' ('+(hrs>36?'<span class="stale">'+rel+', data may be stale</span>':rel)+')';}
 }
 async function load(){
   try{
@@ -195,8 +205,8 @@ async function load(){
     if(!r.ok)throw new Error('HTTP '+r.status);
     render(await r.json());
   }catch(e){
-    $('verdict').textContent='Hmm — can\u2019t reach the data.';
-    $('intro').textContent='('+e.message+') Retrying automatically — the ocean isn\u2019t going anywhere.';
+    $('verdict').textContent='Hmm, can\u2019t reach the data.';
+    $('intro').textContent='('+e.message+') Retrying automatically. The ocean isn\u2019t going anywhere.';
   }
 }
 load();
