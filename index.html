@@ -56,10 +56,19 @@ h1{font-family:Caprasimo,serif;font-weight:400;font-size:34px;line-height:1.1;ma
 .endtag{font-size:10.5px;font-weight:600;border-radius:999px;padding:2px 8px}
 .endtag.sage{color:var(--sage-700);background:var(--sage-200)}
 .endtag.terra{color:var(--terra-700);background:var(--terra-200)}
-.pct{font-size:13px;font-weight:600;white-space:nowrap}
-.track{height:16px;border-radius:999px;background:var(--n200);margin-top:8px;overflow:hidden}
-.fill{height:100%;border-radius:999px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;min-width:34px;transition:width .6s ease}
-.fill span{font-size:10px;font-weight:700;letter-spacing:.02em}
+.status{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:3px 10px;white-space:nowrap}
+.status.open{background:var(--sage-600);color:#fff}
+.status.advisory{background:var(--ochre);color:var(--ochre-800)}
+.status.closed{background:var(--terra);color:#fff}
+.status.warning{background:var(--terra-400);color:var(--terra-800)}
+.status.unknown{background:var(--n200);color:var(--n700)}
+.reading{display:flex;align-items:baseline;gap:7px;margin-top:11px;flex-wrap:wrap}
+.rnum{font-weight:800;font-size:19px;line-height:1}
+.runit{font-size:11px;color:var(--n600)}
+.trend{font-size:11.5px;font-weight:700}
+.trend.down{color:var(--sage-700)}
+.trend.up{color:var(--terra-700)}
+.trend.flat{color:var(--n600)}
 .quip{font-size:12px;color:var(--n600);margin-top:6px}
 .chip{display:inline-flex;align-items:center;gap:8px;margin-top:18px;background:var(--sage-200);color:var(--sage-800);border-radius:999px;padding:8px 16px;font-size:13px;font-weight:600}
 .explain{margin-top:18px;background:var(--sage-100);border-radius:var(--radius);padding:18px}
@@ -67,7 +76,7 @@ h1{font-family:Caprasimo,serif;font-weight:400;font-size:34px;line-height:1.1;ma
 .explain p{font-size:12.5px;line-height:1.55;margin:6px 0 0;color:var(--n800)}
 footer{margin-top:18px;font-size:11px;color:var(--n600);line-height:1.6;text-align:center}
 .stale{color:var(--terra-700);font-weight:600}
-@media(prefers-reduced-motion:reduce){.fill{transition:none}.sheet,.backdrop{transition:none!important}}
+@media(prefers-reduced-motion:reduce){.sheet,.backdrop{transition:none!important}}
 .card{cursor:pointer;transition:transform .12s,box-shadow .12s;border:none;text-align:left;width:100%;font:inherit;color:inherit}
 .card:hover{box-shadow:0 3px 10px rgba(46,43,37,.16)}
 .card:active{transform:scale(.99)}
@@ -96,8 +105,8 @@ footer{margin-top:18px;font-size:11px;color:var(--n600);line-height:1.6;text-ali
 <p class="intro" id="intro">Fetching the latest county samples.</p>
 <div class="cards" id="cards"></div>
 <div class="chip" id="chip" style="display:none"></div>
-<div class="explain"><div class="t">How &ldquo;100%&rdquo; works</div>
-<p>100% = bacteria under the county&rsquo;s safety line of 1,413 copies/100&thinsp;ml. Today&rsquo;s sample <em>and</em> the average of the last 5 samples both need to clear it before we say yes.</p></div>
+<div class="explain"><div class="t">Where this comes from</div>
+<p>The verdict is the County of San Diego&rsquo;s posted status for each station &mdash; open, advisory, or closed. The county decides the posting, not this page. The number on each card is the most recent enterococcus sample, shown so you can see which way things are heading.</p></div>
 <footer id="foot">County data, checked every 30 min</footer>
 </div>
 <div class="backdrop" id="backdrop"></div>
@@ -109,7 +118,7 @@ footer{margin-top:18px;font-size:11px;color:var(--n600);line-height:1.6;text-ali
 <div><div class="lab">5-sample avg</div><div class="num" id="shG"></div></div>
 <div><div class="lab">Trend</div><div class="num" id="shT"></div></div></div>
 <div class="chartwrap"><canvas id="sheetChart"></canvas></div>
-<div class="sheetleg"><span><span class="sw" style="background:#645c50"></span>Daily reading</span><span><span class="sw" style="background:#c67139"></span>Swim line (1,413)</span><span><span class="sw" id="projSw" style="background:#728157"></span>Next 7 days (guess)</span></div>
+<div class="sheetleg"><span><span class="sw" style="background:#645c50"></span>Daily reading</span><span><span class="sw" style="background:#c67139"></span>Reference line (1,413)</span><span><span class="sw" id="projSw" style="background:#728157"></span>Next 7 days (guess)</span></div>
 <div class="sheetnote">The dotted guess is a simple trend fit, direction only. Spikes here come from sewage flows that arrive with little warning, so a clean forecast can flip in a day.</div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
@@ -126,30 +135,27 @@ const mx=xs.reduce((a,b)=>a+b,0)/k,my=ys.reduce((a,b)=>a+b,0)/k;let nu=0,de=0;
 for(let i=0;i<k;i++){nu+=(xs[i]-mx)*(ys[i]-my);de+=(xs[i]-mx)**2}
 const b=de?nu/de:0;return{b,last:my+b*(xs[k-1]-mx)}}
 
+const STATUSES=['open','advisory','warning','closed'];
+function statusOf(st){const v=String(st.status||'').toLowerCase();return STATUSES.indexOf(v)>=0?v:'unknown'}
+function statusLabel(s){return s==='open'?'Open':s==='advisory'?'Advisory':s==='warning'?'Warning':s==='closed'?'Closed':'Status unknown'}
 function analyze(st,T){
+  const status=statusOf(st);
   const vals=(st.readings||[]).map(r=>r[1]);
-  if(!vals.length)return{empty:true};
+  if(!vals.length)return{empty:true,status};
   const latest=vals[vals.length-1],gm=geomean(vals.slice(-Math.min(5,vals.length)));
-  const open=latest<=T&&gm<=T;
-  const pct=Math.min(100,Math.round(T/latest*100));
   const f=fit(vals,Math.min(10,vals.length)),wk=Math.exp(f.b*7);
   const falling=wk<0.95,rising=wk>1.05;
-  let days=null;
-  if(!open&&f.b<0){const d=(Math.log(T)-f.last)/f.b;if(d>0&&d<=21)days=Math.max(1,Math.round(d))}
-  return{latest,gm,open,pct,falling,rising,days,date:st.readings[st.readings.length-1][0]};
+  return{status,latest,gm,falling,rising,date:st.readings[st.readings.length-1][0]};
 }
 function quip(a){
+  if(a.status==='closed')return'Closed by the county after a sewage or chemical spill. Stay out.';
+  if(a.status==='unknown')return'County status unavailable right now.';
   if(a.empty)return'No readings yet. Fills in automatically on the next county pull.';
-  if(a.open)return'In! The water\u2019s minding its manners.';
-  if(a.pct>=85)return a.falling?'Sooo close. Maybe tomorrow!':'So close. Waiting on a clean sample.';
-  if(a.pct>=70)return a.falling?'Not yet, but improving every day.':'Not yet, holding steady.';
-  return a.falling?'Still grumpy. Give it a few days.':a.rising?'Grumpy and getting grumpier. Skip it.':'Still grumpy. Give it a few days.';
+  if(a.status==='open')return a.falling?'Posted open, and still improving.':a.rising?'Posted open, though bacteria are ticking up.':'In! The water\u2019s minding its manners.';
+  return a.falling?'Under advisory, but trending down.':a.rising?'Under advisory and climbing. Skip it.':'Under advisory. Bacteria above state standards.';
 }
-function barColor(a){
-  if(a.open)return['var(--sage-600)','#fff'];
-  if(a.pct>=85)return['var(--ochre)','var(--ochre-800)'];
-  if(a.pct>=70)return['var(--terra-400)','var(--terra-800)'];
-  return['var(--terra)','#fff'];
+function trendBits(a){
+  return a.falling?['down','\u2193 falling']:a.rising?['up','\u2191 rising']:['flat','\u2192 steady'];
 }
 function render(j){
   DATA=j;
@@ -157,43 +163,42 @@ function render(j){
   const sts=(j.stations||[]).slice().sort((x,y)=>(LOCAL[x.key]?.order??9)-(LOCAL[y.key]?.order??9));
   const infos=sts.map(st=>({st,a:analyze(st,T)}));
   const withData=infos.filter(i=>!i.a.empty);
-  const openCount=withData.filter(i=>i.a.open).length;
-  const best=withData.slice().sort((x,y)=>y.a.pct-x.a.pct)[0];
   const anyFalling=withData.some(i=>i.a.falling);
   const nameOf=i=>LOCAL[i.st.key]?.name||esc(i.st.name);
   const listNames=xs=>xs.length<2?xs.join(''):xs.length===2?xs[0]+' and '+xs[1]:xs.slice(0,-1).join(', ')+', and '+xs[xs.length-1];
-  const openList=withData.filter(i=>i.a.open);
-  const greenList=withData.filter(i=>!i.a.open&&i.a.pct>=85);
+  const openList=infos.filter(i=>i.a.status==='open');
+  const closedList=infos.filter(i=>i.a.status==='closed');
+  const openCount=openList.length;
   let v,intro;
-  if(!withData.length){v='Hmm, no data.';intro='No county samples loaded yet. This page fills itself in automatically.'}
-  else if(openList.length===withData.length){v='Time to swim!';intro='Every beach is under the county\u2019s safety line right now. Go get salty.'}
+  if(!infos.length){v='Hmm, no data.';intro='No county samples loaded yet. This page fills itself in automatically.'}
+  else if(openList.length===infos.length){v='Time to swim!';intro='Every station is posted open by the county right now. Go get salty.'}
   else if(openList.length){
     v=openList.length===1?'Time to swim! Stick to '+nameOf(openList[0])+' for now.':'Time to swim! Start at '+listNames(openList.map(nameOf))+'.';
-    intro='';
-    if(greenList.length)intro+=listNames(greenList.map(nameOf))+(greenList.length>1?' are':' is')+' close behind.';
-    if(withData.length-openList.length-greenList.length>0)intro+=(intro?' ':'')+'Everywhere else is still under an advisory.';
+    const rest=infos.filter(i=>i.a.status!=='open');
+    intro=listNames(rest.map(nameOf))+(rest.length>1?' are':' is')+
+      (closedList.length===rest.length?(rest.length>1?' closed by the county.':' closed by the county.'):' posted under a county advisory.');
   }
-  else{v=best.a.pct>=85?(best.a.falling?'So close, and still improving.':'Not quite, but close.'):anyFalling?'Not yet, but we\u2019re trending in the right direction.':'Nope, not today.';
-  intro='Every beach is under a bacteria advisory today. Here\u2019s how close each one is to being swimmable, north to south:'}
+  else if(closedList.length===infos.length){v='Nope, not today.';intro='Every station is closed by the county after a sewage or chemical spill. Here\u2019s the latest sample at each, north to south:'}
+  else{v=anyFalling?'Not yet, but we\u2019re trending in the right direction.':'Nope, not today.';
+  intro='Every station is posted under a county advisory or closure today. Here\u2019s the latest sample at each, north to south:'}
   $('verdict').textContent=v;$('intro').textContent=intro;
   $('cards').innerHTML=infos.map(({st,a})=>{
     const L=LOCAL[st.key]||{name:esc(st.name),tag:''};
-    const tagCls=(a.open||a.pct>=85)?'sage':'terra';
-    const pctTxt=a.empty?'':(a.open?'100%, open!':a.pct+'% there');
-    const pctColor=(a.open||a.pct>=85)?'var(--sage-700)':'var(--terra-700)';
-    const [bc,tc]=a.empty?['transparent','transparent']:barColor(a);
-    const bar=a.empty?'<div class="track"></div>':
-      '<div class="track"><div class="fill" style="width:'+(a.open?100:a.pct)+'%;background:'+bc+'"><span style="color:'+tc+'">'+fmt(a.latest)+'</span></div></div>';
+    const tagCls=a.status==='open'?'sage':'terra';
+    const [tCls,tTxt]=a.empty?['flat','']:trendBits(a);
+    const reading=a.empty?'':
+      '<div class="reading"><span class="rnum">'+fmt(a.latest)+'</span>'+
+      '<span class="runit">enterococcus/100&thinsp;ml &middot; '+esc(a.date)+'</span>'+
+      '<span class="trend '+tCls+'">'+tTxt+'</span></div>';
     return '<button class="card" data-key="'+st.key+'" aria-haspopup="dialog"><div class="cardtop"><div class="nametag"><div class="bname">'+L.name+'</div>'+
       (L.tag?'<div class="endtag '+tagCls+'">'+L.tag+'</div>':'')+
-      '</div><div class="pct" style="color:'+pctColor+'">'+pctTxt+'</div></div>'+bar+
+      '</div><div class="status '+a.status+'">'+statusLabel(a.status)+'</div></div>'+reading+
       '<div class="quip">'+quip(a)+' <span style="color:var(--n600);font-weight:600">Tap for the chart &rsaquo;</span></div></button>';
   }).join('');
   document.querySelectorAll('.card[data-key]').forEach(el=>{el.onclick=()=>openSheet(el.dataset.key)});
   const chip=$('chip');
-  if(openCount>0){chip.textContent=openCount===withData.length?'Swimmable now. Spikes can arrive fast, so we\u2019ll keep watch':'Swimmable now at '+openCount+' of '+withData.length+' beaches';chip.style.display='inline-flex'}
-  else if(best&&best.a.days){chip.textContent='On this pace: swimmable in ~'+best.a.days+' day'+(best.a.days>1?'s':'')+', '+(LOCAL[best.st.key]?.name||best.st.name)+' first';chip.style.display='inline-flex'}
-  else if(best){chip.textContent=anyFalling?'Improving, but no clear swim window this week':'No swim window likely this week';chip.style.display='inline-flex'}
+  if(openCount>0){chip.textContent=openCount===infos.length?'All stations posted open. Spikes can arrive fast, so we\u2019ll keep watch':'Posted open at '+openCount+' of '+infos.length+' stations';chip.style.display='inline-flex'}
+  else if(infos.length){chip.textContent=anyFalling?'Bacteria trending down, but nothing posted open yet':'Nothing posted open right now';chip.style.display='inline-flex'}
   else chip.style.display='none';
   if(j.updated_utc){const d=new Date(j.updated_utc),hrs=(Date.now()-d.getTime())/3.6e6;
     const rel=hrs<1?'just now':hrs<48?Math.round(hrs)+' h ago':Math.round(hrs/24)+' d ago';
@@ -222,11 +227,11 @@ function openSheet(key){
   const T=DATA.threshold||1413,L=LOCAL[key]||{name:st.name,tag:''};
   const a=analyze(st,T);
   document.getElementById('sheetTitle').textContent=L.name;
-  document.getElementById('sheetSub').textContent='county station: '+st.name+(st.station_id?' ('+st.station_id+')':'')+(L.tag?' \u00b7 '+L.tag:'');
+  document.getElementById('sheetSub').innerHTML='<span class="status '+a.status+'">'+statusLabel(a.status)+'</span> county station: '+esc(st.name)+(st.station_id?' ('+esc(st.station_id)+')':'')+(L.tag?' \u00b7 '+esc(L.tag):'');
   document.getElementById('shL').textContent=fmt(a.latest);
-  document.getElementById('shL').style.color=a.latest<=T?'var(--sage-700)':'var(--terra-700)';
+  document.getElementById('shL').style.color='var(--n800)';
   document.getElementById('shG').textContent=fmt(a.gm);
-  document.getElementById('shG').style.color=a.gm<=T?'var(--sage-700)':'var(--terra-700)';
+  document.getElementById('shG').style.color='var(--n800)';
   document.getElementById('shT').textContent=a.falling?'improving':a.rising?'rising':'flat';
   document.getElementById('shT').style.color=a.falling?'var(--sage-700)':a.rising?'var(--terra-700)':'var(--n700)';
   const R=st.readings.slice(-45),dates=R.map(r=>r[0]),vals=R.map(r=>r[1]),n=vals.length;
@@ -237,7 +242,7 @@ function openSheet(key){
   const pd=Array(n+7).fill(null);pd[n-1]=vals[n-1];for(let k=1;k<=7;k++)pd[n-1+k]=Math.exp(f.last+f.b*k);
   const yMin=Math.max(1,Math.floor(Math.min(...vals)*0.7));
   const yTicks=[10,100,500,T,5000,50000,200000].filter(v=>v>=yMin);
-  const pcol=a.falling||a.open?'#728157':'#f6a06b';
+  const pcol=a.falling||a.status==='open'?'#728157':'#f6a06b';
   document.getElementById('projSw').style.background=pcol;
   const wrap=document.querySelector('.chartwrap');
   if(typeof Chart==='undefined'){wrap.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--n600);font-size:13px;text-align:center;padding:0 20px">Chart couldn\u2019t load (offline?) \u2014 the numbers above are still live.</div>';}

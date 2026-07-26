@@ -36,11 +36,22 @@ name) so the exact county codes are always visible in the Actions log.
 """
 import json, sys, re, datetime as dt
 from pathlib import Path
+from collections import Counter
 from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data" / "stations.json"
 BASE = "https://cosdapps.sandiegocounty.gov/sdbeachinfo/SamplesReport?SiteId={sid}"
+HOME = "https://cosdapps.sandiegocounty.gov/sdbeachinfo/"
+
+# County map-pin severity -> posted status. PriorityMax is undocumented, but
+# its distribution across all ~90 sites reconciles exactly with the county's
+# own closure/advisory/warning tallies (verified 2026-07-26: 10 closed,
+# 4 advisory, 0 warning). Every run re-checks that before trusting it.
+PRIORITY_STATUS = {1: "open", 2: "advisory", 3: "warning", 4: "closed"}
+COUNT_ENDPOINTS = {"getclosures": "closed",
+                   "getadvisoriescount": "advisory",
+                   "getwarnings": "warning"}
 
 # Name-key candidates seen in OutSystems site records.
 NAME_KEYS = ("SiteName", "Name", "Label", "BeachName", "Description",
@@ -238,6 +249,61 @@ def probe_site_ids(browser, stations, matchers, page_cache):
                 break
 
 
+def fetch_statuses(browser):
+    """Capture the county home page. Returns ({site_id: PriorityMax},
+    {status: countywide total})."""
+    payloads = capture(browser, HOME, wait=6000)
+    sites, counts = {}, {}
+
+    def walk(o):
+        if isinstance(o, dict):
+            if "PriorityMax" in o and o.get("Id"):
+                try:
+                    sites[int(o["Id"])] = int(o["PriorityMax"])
+                except (TypeError, ValueError):
+                    pass
+            for v in o.values():
+                walk(v)
+        elif isinstance(o, list):
+            for v in o:
+                walk(v)
+
+    for url, pl in payloads:
+        walk(pl)
+        low = url.lower()
+        for frag, key in COUNT_ENDPOINTS.items():
+            if frag in low:
+                try:
+                    counts[key] = int(pl["data"]["List"]["List"][0]["Count"])
+                except Exception:
+                    pass
+    return sites, counts
+
+
+def statuses_trustworthy(sites, counts):
+    """PriorityMax is inferred, not documented. Only trust it when its
+    distribution reproduces the county's own published tallies."""
+    if not sites:
+        print("STATUS: no PriorityMax values in home payload.", flush=True)
+        return False
+    missing = [k for k in ("closed", "advisory", "warning") if k not in counts]
+    if missing:
+        print(f"STATUS: missing county tallies {missing}; keeping previous "
+              f"statuses.", flush=True)
+        return False
+    tally = Counter(PRIORITY_STATUS.get(v, "unknown") for v in sites.values())
+    for key in ("closed", "advisory", "warning"):
+        if tally.get(key, 0) != counts[key]:
+            print(f"STATUS MISMATCH: {key}: PriorityMax says "
+                  f"{tally.get(key, 0)}, county reports {counts[key]}. "
+                  f"Keeping previous statuses.", flush=True)
+            return False
+    print(f"STATUS: reconciled across {len(sites)} sites "
+          f"({counts['closed']} closed, {counts['advisory']} advisory, "
+          f"{counts['warning']} warning).", flush=True)
+    return True
+
+
 def main():
     obj, stations, threshold, matchers = load_config()
     if not stations:
@@ -255,6 +321,23 @@ def main():
     any_ok = False
     with sync_playwright() as p:
         b = p.chromium.launch(headless=True)
+
+        # --- Phase 0: county posted status (this drives the verdict) ---
+        site_status, counts = fetch_statuses(b)
+        if statuses_trustworthy(site_status, counts):
+            now = dt.datetime.now(dt.timezone.utc).strftime(
+                '%Y-%m-%dT%H:%M:%SZ')
+            for st in stations:
+                pmax = site_status.get(st.get('site_id'))
+                if pmax is None:
+                    print(f"WARN: no county status for {st['name']}; "
+                          f"keeping previous.", flush=True)
+                    continue
+                st['priority_max'] = pmax
+                st['status'] = PRIORITY_STATUS.get(pmax, 'unknown')
+                st['status_checked_utc'] = now
+                print(f"STATUS {st['name']}: {st['status']} "
+                      f"(PriorityMax={pmax})", flush=True)
 
         # --- Phase 1: discover the site list from a known page ---
         seed = next((s for s in stations if s.get("site_id")), stations[0])
