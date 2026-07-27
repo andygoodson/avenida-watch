@@ -1,6 +1,6 @@
 {
  "threshold": 1413,
- "updated_utc": "2026-07-26T22:12:24Z",
+ "updated_utc": "2026-07-27T04:01:12Z",
  "stations": [
   {
    "key": "avenida",
@@ -261,11 +261,15 @@
     [
      "2026-07-25",
      1004
+    ],
+    [
+     "2026-07-26",
+     1504
     ]
    ],
-   "status": "open",
-   "priority_max": 1,
-   "status_checked_utc": "2026-07-26T22:12:03Z"
+   "status": "advisory",
+   "priority_max": 2,
+   "status_checked_utc": "2026-07-27T04:00:48Z"
   },
   {
    "key": "lifeguard",
@@ -474,11 +478,15 @@
     [
      "2026-07-25",
      1612
+    ],
+    [
+     "2026-07-26",
+     987
     ]
    ],
-   "status": "advisory",
-   "priority_max": 2,
-   "status_checked_utc": "2026-07-26T22:12:03Z"
+   "status": "open",
+   "priority_max": 1,
+   "status_checked_utc": "2026-07-27T04:00:48Z"
   },
   {
    "key": "northbeach",
@@ -683,11 +691,15 @@
     [
      "2026-07-25",
      2756
+    ],
+    [
+     "2026-07-26",
+     1268
     ]
    ],
-   "status": "advisory",
-   "priority_max": 2,
-   "status_checked_utc": "2026-07-26T22:12:03Z"
+   "status": "open",
+   "priority_max": 1,
+   "status_checked_utc": "2026-07-27T04:00:48Z"
   }
  ]
 }
