@@ -1,6 +1,6 @@
 {
  "threshold": 1413,
- "updated_utc": "2026-07-29T11:34:13Z",
+ "updated_utc": "2026-07-29T14:31:15Z",
  "stations": [
   {
    "key": "avenida",
@@ -277,7 +277,7 @@
    ],
    "status": "advisory",
    "priority_max": 2,
-   "status_checked_utc": "2026-07-29T11:33:54Z"
+   "status_checked_utc": "2026-07-29T14:30:55Z"
   },
   {
    "key": "lifeguard",
@@ -494,7 +494,7 @@
    ],
    "status": "open",
    "priority_max": 1,
-   "status_checked_utc": "2026-07-29T11:33:54Z"
+   "status_checked_utc": "2026-07-29T14:30:55Z"
   },
   {
    "key": "northbeach",
@@ -707,7 +707,7 @@
    ],
    "status": "open",
    "priority_max": 1,
-   "status_checked_utc": "2026-07-29T11:33:54Z"
+   "status_checked_utc": "2026-07-29T14:30:55Z"
   }
  ]
 }
