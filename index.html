@@ -70,6 +70,14 @@ h1{font-family:Caprasimo,serif;font-weight:400;font-size:34px;line-height:1.1;ma
 .trend.up{color:var(--terra-700)}
 .trend.flat{color:var(--n600)}
 .quip{font-size:12px;color:var(--n600);margin-top:6px}
+.stats2{display:flex;align-items:stretch;gap:16px;margin-top:13px}
+.stat{display:flex;flex-direction:column;gap:3px}
+.slab{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--n600)}
+.snum{font-weight:800;font-size:24px;line-height:1}
+.ssub{font-size:10.5px;color:var(--n600)}
+.sdiv{width:1px;background:var(--n200);flex:none}
+.stat.old .slab,.stat.old .snum{color:var(--terra-700)}
+.stat.old .ssub{color:var(--terra-700);font-weight:600}
 .chip{display:inline-flex;align-items:center;gap:8px;margin-top:18px;background:var(--sage-200);color:var(--sage-800);border-radius:999px;padding:8px 16px;font-size:13px;font-weight:600}
 .explain{margin-top:18px;background:var(--sage-100);border-radius:var(--radius);padding:18px}
 .explain .t{font-weight:700;font-size:13px;color:var(--sage-800)}
@@ -203,9 +211,15 @@ function render(j){
     const tagCls=a.status==='open'?'sage':'terra';
     const [tCls,tTxt]=a.empty?['flat','']:trendBits(a);
     const reading=a.empty?'':
-      '<div class="reading"><span class="rnum">'+fmt(a.latest)+'</span>'+
-      '<span class="runit">copies/100&thinsp;ml &middot; '+esc(a.date)+'</span>'+
-      '<span class="trend '+tCls+'">'+tTxt+'</span></div>';
+      '<div class="stats2">'+
+        '<div class="stat"><div class="slab">Reading</div>'+
+        '<div class="snum">'+fmt(a.latest)+'</div>'+
+        '<div class="ssub">copies/100&thinsp;ml'+(tTxt?' &middot; <span class="trend '+tCls+'">'+tTxt+'</span>':'')+'</div></div>'+
+        '<div class="sdiv"></div>'+
+        '<div class="stat'+(a.stale?' old':'')+'"><div class="slab">Sampled</div>'+
+        '<div class="snum">'+niceD(a.date)+'</div>'+
+        '<div class="ssub">'+ageTxt(a.age)+'</div></div>'+
+      '</div>';
     return '<button class="card" data-key="'+st.key+'" aria-haspopup="dialog"><div class="cardtop"><div class="nametag"><div class="bname">'+L.name+'</div>'+
       (L.tag?'<div class="endtag '+tagCls+'">'+L.tag+'</div>':'')+
       '</div><div class="status '+a.status+'">'+statusLabel(a.status)+'</div></div>'+reading+
@@ -244,6 +258,9 @@ setInterval(load,30*60*1000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
 
 const shortD=iso=>{const p=iso.split('-');return (+p[1])+'/'+(+p[2])};
+const MON3=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const niceD=iso=>{const p=iso.split('-');return MON3[+p[1]-1]+' '+(+p[2])};
+const ageTxt=n=>n<=0?'today':n===1?'yesterday':n+' days ago';
 function addDays(iso,k){const d=new Date(iso+'T12:00:00');d.setDate(d.getDate()+k);return d.toISOString().slice(0,10)}
 function openSheet(key){
   if(!DATA)return;
