@@ -9,19 +9,19 @@ Stations tracked (north -> south):
   1. Coronado North Beach          (StationID EH-060, SiteId 10; pre-2019 IB-080)
   2. Coronado Main Lifeguard Tower (StationID EH-050, SiteId 7; pre-2019 IB-070)
   3. Avenida Lunar                 (StationID IB-079, SiteId 121)
-  4. Silver Strand N End (Ocean)   (StationID IB-070, SiteId 120)
-  5. Silver Strand - Guard Shack   (StationID IB-068, SiteId 118)
-  6. Carnation Ave.                (StationID IB-060, SiteId 116)
+  4. Silver Strand - Guard Shack   (StationID IB-068, SiteId 118)
+  5. Carnation Ave.                (StationID IB-060, SiteId 116)
 
-NOTE: IB-070 is live for Silver Strand N End AND is the pre-2019 code for the
-Coronado Main Lifeguard Tower. SiteId 7's page carries no IB-070 rows today,
-so there is no active collision, but do not resolve either station by that
-code alone. Both Silver Strand stations also share the BeachName "Silver
-Strand State Beach", so name matching cannot separate them either -- the
-seeded SiteIds in KNOWN_SITE_IDS are what keep these three unambiguous.
+NOT tracked: Silver Strand N End (Ocean) (StationID IB-070, SiteId 120).
+Dropped deliberately. The City of San Diego samples it ~weekly using a
+culture method -- its records carry a Total/Fecal Coliform + Enterococcus
+panel reported in MPN/100 ml. Every station above is the County's daily
+ddPCR assay in copies/100 ml, so IB-070's results are not comparable to the
+1,413 threshold and must not be charted on the same axis. Do not re-add it
+without per-station units and thresholds.
 
-Silver Strand N End is sampled ~weekly by the City of San Diego, not daily by
-the County, so expect long gaps in its series.
+NOTE: IB-070 is also the pre-2019 code for the Coronado Main Lifeguard
+Tower, so never resolve a station by that code alone.
 
 SiteIds verified 2026-07-20 against the county Beach & Bay map ("Find a site"
 -> View Sample Data links). KNOWN_SITE_IDS below seeds them directly; the
@@ -86,8 +86,6 @@ def load_config():
         "avenida":    (("avenida",), "IB-079"),
         "lifeguard":  (("coronado",), "EH-050"),  # + must contain lifeguard/tower
         "northbeach": (("coronado", "north"), "EH-060"),
-        # Both Silver Strand stations share a BeachName; StationID separates.
-        "strandnorth": (("silver", "strand"), "IB-070"),
         "guardshack":  (("silver", "strand"), "IB-068"),
         "carnation":   (("carnation",), "IB-060"),
     }
@@ -99,7 +97,6 @@ KNOWN_SITE_IDS = {
     "avenida":    (121, "IB-079"),
     "lifeguard":  (7,   "EH-050"),
     "northbeach": (10,  "EH-060"),
-    "strandnorth": (120, "IB-070"),
     "guardshack":  (118, "IB-068"),
     "carnation":   (116, "IB-060"),
 }

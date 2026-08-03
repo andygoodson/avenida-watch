@@ -1,6 +1,6 @@
 {
  "threshold": 1413,
- "updated_utc": "2026-08-03T17:34:23Z",
+ "updated_utc": "2026-08-03T17:45:22Z",
  "stations": [
   {
    "key": "northbeach",
@@ -233,7 +233,7 @@
    ],
    "status": "advisory",
    "priority_max": 2,
-   "status_checked_utc": "2026-08-03T17:33:36Z"
+   "status_checked_utc": "2026-08-03T17:44:39Z"
   },
   {
    "key": "lifeguard",
@@ -470,7 +470,7 @@
    ],
    "status": "advisory",
    "priority_max": 2,
-   "status_checked_utc": "2026-08-03T17:33:36Z"
+   "status_checked_utc": "2026-08-03T17:44:39Z"
   },
   {
    "key": "avenida",
@@ -767,40 +767,7 @@
    ],
    "status": "open",
    "priority_max": 1,
-   "status_checked_utc": "2026-08-03T17:33:36Z"
-  },
-  {
-   "key": "strandnorth",
-   "name": "Silver Strand N End (Ocean)",
-   "short": "Silver Strand N",
-   "station_id": "IB-070",
-   "site_id": 120,
-   "order": 3,
-   "readings": [
-    [
-     "2026-06-09",
-     14
-    ],
-    [
-     "2026-06-16",
-     8
-    ],
-    [
-     "2026-06-24",
-     40
-    ],
-    [
-     "2026-06-30",
-     2
-    ],
-    [
-     "2026-07-07",
-     2
-    ]
-   ],
-   "priority_max": 4,
-   "status": "closed",
-   "status_checked_utc": "2026-08-03T17:33:36Z"
+   "status_checked_utc": "2026-08-03T17:44:39Z"
   },
   {
    "key": "guardshack",
@@ -808,7 +775,7 @@
    "short": "Guard Shack",
    "station_id": "IB-068",
    "site_id": 118,
-   "order": 4,
+   "order": 3,
    "readings": [
     [
      "2026-05-24",
@@ -1045,7 +1012,7 @@
    ],
    "priority_max": 4,
    "status": "closed",
-   "status_checked_utc": "2026-08-03T17:33:36Z"
+   "status_checked_utc": "2026-08-03T17:44:39Z"
   },
   {
    "key": "carnation",
@@ -1053,7 +1020,7 @@
    "short": "Carnation Ave",
    "station_id": "IB-060",
    "site_id": 116,
-   "order": 5,
+   "order": 4,
    "readings": [
     [
      "2026-05-26",
@@ -1250,7 +1217,7 @@
    ],
    "priority_max": 4,
    "status": "closed",
-   "status_checked_utc": "2026-08-03T17:33:36Z"
+   "status_checked_utc": "2026-08-03T17:44:39Z"
   }
  ]
 }
