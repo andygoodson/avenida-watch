@@ -1,6 +1,6 @@
 {
  "threshold": 1413,
- "updated_utc": "2026-08-11T04:39:41Z",
+ "updated_utc": "2026-08-11T07:35:58Z",
  "stations": [
   {
    "key": "northbeach",
@@ -241,7 +241,7 @@
    ],
    "status": "open",
    "priority_max": 1,
-   "status_checked_utc": "2026-08-11T04:39:04Z"
+   "status_checked_utc": "2026-08-11T07:35:25Z"
   },
   {
    "key": "lifeguard",
@@ -490,7 +490,7 @@
    ],
    "status": "advisory",
    "priority_max": 2,
-   "status_checked_utc": "2026-08-11T04:39:04Z"
+   "status_checked_utc": "2026-08-11T07:35:25Z"
   },
   {
    "key": "avenida",
@@ -819,7 +819,7 @@
    ],
    "status": "advisory",
    "priority_max": 2,
-   "status_checked_utc": "2026-08-11T04:39:04Z"
+   "status_checked_utc": "2026-08-11T07:35:25Z"
   },
   {
    "key": "guardshack",
@@ -1096,7 +1096,7 @@
    ],
    "priority_max": 2,
    "status": "advisory",
-   "status_checked_utc": "2026-08-11T04:39:04Z"
+   "status_checked_utc": "2026-08-11T07:35:25Z"
   },
   {
    "key": "carnation",
@@ -1333,7 +1333,7 @@
    ],
    "priority_max": 4,
    "status": "closed",
-   "status_checked_utc": "2026-08-11T04:39:04Z"
+   "status_checked_utc": "2026-08-11T07:35:25Z"
   }
  ]
 }
