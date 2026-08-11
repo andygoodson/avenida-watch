@@ -114,8 +114,8 @@ footer{margin-top:18px;font-size:11px;color:var(--n600);line-height:1.6;text-ali
 <div class="cards" id="cards"></div>
 <div class="chip" id="chip" style="display:none"></div>
 <div class="explain"><div class="t">Where this comes from</div>
-<p>The verdict is the County of San Diego&rsquo;s posted status for each station &mdash; open, advisory, or closed. The county decides the posting, not this page. Each station is sampled every morning and the county posts the result the next day &mdash; so the newest number here is yesterday&rsquo;s water, not this morning&rsquo;s.</p>
-<p>The number is the latest sample: DNA copies per 100&thinsp;ml by ddPCR. The county&rsquo;s action threshold is 1,413 &mdash; validated against San Diego beaches as the ddPCR equivalent of California&rsquo;s Enterolert standard. When a station is falling, we project roughly when it crosses that line. A clean sample is what gets an advisory lifted, so the projection leads the posting by a day or two. It&rsquo;s a trend fit, not a promise: sewage spikes arrive with little warning. Stations are listed north to south, from Coronado down the Silver Strand to Imperial Beach; we skip the projection whenever the latest sample is more than two weeks old.</p></div>
+<p>The verdict is the County of San Diego&rsquo;s posted status for each station: open, advisory, or closed. The county makes that call, not this page. Stations get sampled every morning and results post the next day. So the newest number here is yesterday&rsquo;s water.</p>
+<p>The number is the latest sample, in DNA copies per 100&thinsp;ml by ddPCR. The county&rsquo;s action line is 1,413, validated against San Diego beaches as the ddPCR equivalent of California&rsquo;s Enterolert standard. When a station is falling we project roughly when it crosses. An advisory lifts on a clean sample, so the projection runs a day or two ahead of the posting. Call it a trend fit. Sewage spikes arrive with little warning. Stations run north to south, Coronado down the Silver Strand to Imperial Beach. If the latest sample is more than two weeks old we skip the projection.</p></div>
 <footer id="foot">County data</footer>
 </div>
 <div class="backdrop" id="backdrop"></div>
@@ -171,7 +171,7 @@ function quip(a){
   if(a.status==='closed')return'Closed by the county after a sewage or chemical spill. Stay out.';
   if(a.status==='unknown')return'County status unavailable right now.';
   if(a.empty)return'No readings yet. Fills in automatically on the next county pull.';
-  if(a.stale)return'Last county sample was '+a.age+' days ago \u2014 too old to read a trend from.';
+  if(a.stale)return'Last county sample was '+a.age+' days ago. Too old to read a trend from.';
   if(a.status==='open')return a.falling?'Posted open, and still improving.':a.rising?'Posted open, though bacteria are ticking up.':'In! The water\u2019s minding its manners.';
   if(a.under)return'Under the line already. The county lifts an advisory once a clean sample lands.';
   if(a.days)return'Under advisory. On this pace it crosses the line in ~'+a.days+' day'+(a.days>1?'s':'')+'.';
@@ -290,7 +290,7 @@ function openSheet(key){
   const pcol=a.falling||a.status==='open'?'#728157':'#f6a06b';
   document.getElementById('projSw').style.background=pcol;
   const wrap=document.querySelector('.chartwrap');
-  if(typeof Chart==='undefined'){wrap.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--n600);font-size:13px;text-align:center;padding:0 20px">Chart couldn\u2019t load (offline?) \u2014 the numbers above are still live.</div>';}
+  if(typeof Chart==='undefined'){wrap.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--n600);font-size:13px;text-align:center;padding:0 20px">Chart couldn\u2019t load (offline?). The numbers above are still live.</div>';}
   else{
   if(!document.getElementById('sheetChart'))wrap.innerHTML='<canvas id="sheetChart"></canvas>';
   if(chartInst)chartInst.destroy();
