@@ -114,9 +114,9 @@ footer{margin-top:18px;font-size:11px;color:var(--n600);line-height:1.6;text-ali
 <div class="cards" id="cards"></div>
 <div class="chip" id="chip" style="display:none"></div>
 <div class="explain"><div class="t">Where this comes from</div>
-<p>The verdict is the County of San Diego&rsquo;s posted status for each station &mdash; open, advisory, or closed. The county decides the posting, not this page.</p>
+<p>The verdict is the County of San Diego&rsquo;s posted status for each station &mdash; open, advisory, or closed. The county decides the posting, not this page. Each station is sampled every morning and the county posts the result the next day &mdash; so the newest number here is yesterday&rsquo;s water, not this morning&rsquo;s.</p>
 <p>The number is the latest sample: DNA copies per 100&thinsp;ml by ddPCR. The county&rsquo;s action threshold is 1,413 &mdash; validated against San Diego beaches as the ddPCR equivalent of California&rsquo;s Enterolert standard. When a station is falling, we project roughly when it crosses that line. A clean sample is what gets an advisory lifted, so the projection leads the posting by a day or two. It&rsquo;s a trend fit, not a promise: sewage spikes arrive with little warning. Stations are listed north to south, from Coronado down the Silver Strand to Imperial Beach; we skip the projection whenever the latest sample is more than two weeks old.</p></div>
-<footer id="foot">County data, checked every 30 min</footer>
+<footer id="foot">County data</footer>
 </div>
 <div class="backdrop" id="backdrop"></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
@@ -238,9 +238,13 @@ function render(j){
     else chip.textContent=anyFalling?'Bacteria trending down, but no clear swim window this week':'No swim window likely this week';
     chip.style.display='inline-flex';
   }
-  if(j.updated_utc){const d=new Date(j.updated_utc),hrs=(Date.now()-d.getTime())/3.6e6;
-    const rel=hrs<1?'just now':hrs<48?Math.round(hrs)+' h ago':Math.round(hrs/24)+' d ago';
-    $('foot').innerHTML='County data, checked every 30 min · updated '+d.toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' ('+(hrs>36?'<span class="stale">'+rel+', data may be stale</span>':rel)+')';}
+  const dated=withData.filter(i=>i.a.date);
+  if(dated.length){
+    const newest=dated.reduce((m,i)=>i.a.date>m.a.date?i:m,dated[0]).a;
+    const label=new Date(newest.date+'T12:00:00Z').toLocaleDateString([],{month:'short',day:'numeric',timeZone:'UTC'});
+    const rel=newest.age<=0?'today':newest.age===1?'yesterday':newest.age+' days ago';
+    $('foot').innerHTML='County data · latest sample '+label+' ('+(newest.age>2?'<span class="stale">'+rel+', may be out of date</span>':rel)+')';
+  }else{$('foot').textContent='County data';}
 }
 async function load(){
   try{
@@ -253,7 +257,7 @@ async function load(){
   }
 }
 load();
-setInterval(load,30*60*1000);
+setInterval(load,3*60*60*1000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
 
 const shortD=iso=>{const p=iso.split('-');return (+p[1])+'/'+(+p[2])};
